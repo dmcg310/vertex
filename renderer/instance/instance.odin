@@ -13,6 +13,8 @@ Instance :: struct {
 }
 
 create_instance :: proc(enable_validation_layers: bool) -> Instance {
+	vk.load_proc_addresses((rawptr)(glfw.GetInstanceProcAddress))
+
 	instance := Instance{}
 	instance.validation_layers_enabled = enable_validation_layers
 
@@ -42,6 +44,8 @@ create_instance :: proc(enable_validation_layers: bool) -> Instance {
 		panic("Failed to create Vulkan instance:")
 	}
 
+    vk.load_proc_addresses(instance.instance)
+
 	if enable_validation_layers {
 	}
 
@@ -49,4 +53,9 @@ create_instance :: proc(enable_validation_layers: bool) -> Instance {
 }
 
 destroy_instance :: proc(instance: Instance) {
+	if instance.validation_layers_enabled {
+	}
+
+	vk.DestroyInstance(instance.instance, nil)
+
 }
