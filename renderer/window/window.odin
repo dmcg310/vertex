@@ -6,8 +6,8 @@ import "vendor:glfw"
 import vk "vendor:vulkan"
 
 Window :: struct {
-	handle:  glfw.WindowHandle,
-	surface: vk.SurfaceKHR,
+	handle:          glfw.WindowHandle,
+	surface_created: bool,
 }
 
 init_window :: proc(width, height: i32, title: string) -> Window {
@@ -16,6 +16,8 @@ init_window :: proc(width, height: i32, title: string) -> Window {
 	if !glfw.Init() {
 		panic("Failed to initialize GLFW")
 	}
+
+	glfw.WindowHint(glfw.CLIENT_API, glfw.NO_API)
 
 	if window.handle = glfw.CreateWindow(
 		width,
@@ -27,10 +29,9 @@ init_window :: proc(width, height: i32, title: string) -> Window {
 		panic("Failed to create GLFW window")
 	}
 
-	glfw.WindowHint(glfw.CLIENT_API, glfw.NO_API)
 	glfw.SetFramebufferSizeCallback(window.handle, framebuffer_size_callback)
 
-	fmt.println("Window initialized")
+	fmt.println("Window created")
 
 	return window
 }
@@ -43,20 +44,42 @@ poll_window_events :: proc() {
 	glfw.PollEvents()
 }
 
-// create_surface :: proc(
-// 	instance: vk.Instance,
-// 	window: Window,
-// ) -> vk.SurfaceKHR {
-// 	surface: vk.SurfaceKHR
-// 	if glfw.CreateWindowSurface(instance, window.handle, nil, &surface) {
-// 		fmt.println("Failed to create window surface")
-// 	}
-// 	return surface
-// }
+create_surface :: proc(
+	instance: vk.Instance,
+	window: ^Window,
+) -> vk.SurfaceKHR {
+	if window.surface_created {
+		panic("Surface for this window already created")
+	}
 
-// destroy_surface :: proc(instance: vk.Instance, window: Window) {
-// 	vk.DestroySurfaceKHR(instance, window.surface, nil)
-// }
+	surface: vk.SurfaceKHR
+
+	if err := glfw.CreateWindowSurface(instance, window.handle, nil, &surface);
+	   err != vk.Result.SUCCESS {
+		fmt.println("Result: ", err)
+		panic("Failed to create window surface")
+	}
+
+	fmt.println("Vulkan surface created")
+
+	window.surface_created = true
+
+	return surface
+}
+
+destroy_surface :: proc(
+	surface: vk.SurfaceKHR,
+	instance: vk.Instance,
+	window: ^Window,
+) {
+	if window.surface_created {
+		vk.DestroySurfaceKHR(instance, surface, nil)
+
+		fmt.println("Vulkan surface destroyed")
+
+		window.surface_created = false
+	}
+}
 
 destroy_window :: proc(window: Window) {
 	glfw.DestroyWindow(window.handle)

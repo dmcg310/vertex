@@ -2,14 +2,21 @@ package device
 
 import "../instance"
 import "../util"
+import "../window"
 import "core:fmt"
+import "vendor:glfw"
 import vk "vendor:vulkan"
+
+Surface :: struct {
+	surface: vk.SurfaceKHR,
+}
 
 Device :: struct {
 	physical_device: vk.PhysicalDevice,
 	logical_device:  vk.Device,
 	graphics_queue:  vk.Queue,
 	properties:      vk.PhysicalDeviceProperties,
+	surface:         Surface,
 }
 
 QueueFamily :: enum {
@@ -21,9 +28,11 @@ QueueFamilyIndices :: struct {
 	data: [QueueFamily]int,
 }
 
+create_device :: proc() -> Device {
+	return Device{}
+}
 
-pick_physical_device :: proc(instance: vk.Instance) -> Device {
-	device := Device{}
+pick_physical_device :: proc(device: ^Device, instance: vk.Instance) {
 	device.physical_device = nil
 
 	device_count: u32 = 0
@@ -48,14 +57,9 @@ pick_physical_device :: proc(instance: vk.Instance) -> Device {
 	if highest_score == 0 || device.physical_device == nil {
 		panic("Failed to find a suitable GPU")
 	}
-
-	vk.GetPhysicalDeviceProperties(device.physical_device, &device.properties)
-	display_device_properties(device.properties)
-
-	return device
 }
 
-create_logical_device :: proc(_instance: instance.Instance, device: ^Device) {
+create_logical_device :: proc(device: ^Device, _instance: instance.Instance) {
 	indices := find_queue_families(device.physical_device)
 
 	queue_priority: f32 = 1.0
@@ -105,6 +109,27 @@ create_logical_device :: proc(_instance: instance.Instance, device: ^Device) {
 	vk.load_proc_addresses(device.logical_device)
 
 	fmt.println("Vulkan logical device created")
+
+	vk.GetPhysicalDeviceProperties(device.physical_device, &device.properties)
+	display_device_properties(device.properties)
+}
+
+create_surface :: proc(
+	_instance: instance.Instance,
+	_window: ^window.Window,
+) -> Surface {
+	surface := Surface{}
+	surface.surface = window.create_surface(_instance.instance, _window)
+
+	return surface
+}
+
+destroy_surface :: proc(
+	surface: Surface,
+	instance: instance.Instance,
+	_window: ^window.Window,
+) {
+	window.destroy_surface(surface.surface, instance.instance, _window)
 }
 
 destroy_logical_device :: proc(device: Device) {
@@ -133,11 +158,6 @@ is_device_suitable :: proc(device: vk.PhysicalDevice) -> int {
 	if !device_features.geometryShader {
 		return 0
 	}
-
-	// if !check_device_extension_support(device) {
-	//     return 0
-	// }
-
 
 	return score
 }
