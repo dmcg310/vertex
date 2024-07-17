@@ -22,7 +22,7 @@ create_instance :: proc(enable_validation_layers: bool) -> Instance {
 	instance.validation_layers_enabled = enable_validation_layers
 
 	if enable_validation_layers && !check_validation_layer_support() {
-		panic("Validation layers requested, but not available!")
+		panic("Validation layers requested, but not available")
 	}
 
 	glfw_extensions := glfw.GetRequiredInstanceExtensions()
@@ -167,7 +167,7 @@ setup_debug_messenger :: proc(instance: ^Instance) {
 		nil,
 		&instance.debug_messenger,
 	); result != vk.Result.SUCCESS {
-		panic("Failed to set up debug messenger!")
+		panic("Failed to set up debug messenger")
 	}
 }
 
