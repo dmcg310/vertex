@@ -93,6 +93,7 @@ destroy_instance :: proc(instance: Instance) {
 	fmt.println("Vulkan instance destroyed")
 }
 
+@(private)
 check_validation_layer_support :: proc() -> bool {
 	layer_count: u32 = 0
 	vk.EnumerateInstanceLayerProperties(&layer_count, nil)
@@ -124,6 +125,7 @@ check_validation_layer_support :: proc() -> bool {
 	return true
 }
 
+@(private)
 get_required_extensions :: proc(instance: Instance) -> []cstring {
 	glfw_extensions := glfw.GetRequiredInstanceExtensions()
 	glfw_extension_count := len(glfw_extensions)
@@ -155,6 +157,7 @@ vulkan_debug_callback :: proc "stdcall" (
 	return false
 }
 
+@(private)
 setup_debug_messenger :: proc(instance: ^Instance) {
 	if !instance.validation_layers_enabled {
 		return
@@ -173,6 +176,7 @@ setup_debug_messenger :: proc(instance: ^Instance) {
 	}
 }
 
+@(private)
 create_debug_utils_messenger_ext :: proc(
 	instance: vk.Instance,
 	create_info: ^vk.DebugUtilsMessengerCreateInfoEXT,
@@ -198,6 +202,7 @@ create_debug_utils_messenger_ext :: proc(
 	}
 }
 
+@(private)
 populate_debug_messenger_create_info :: proc(
 	create_info: ^vk.DebugUtilsMessengerCreateInfoEXT,
 ) {
@@ -214,6 +219,7 @@ populate_debug_messenger_create_info :: proc(
 	create_info.pUserData = nil
 }
 
+@(private)
 destroy_debug_utils_messenger_ext :: proc(
 	instance: vk.Instance,
 	debug_messenger: vk.DebugUtilsMessengerEXT,

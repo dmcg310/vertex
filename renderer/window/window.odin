@@ -65,6 +65,7 @@ destroy_window :: proc(window: Window) {
 	fmt.println("Window destroyed")
 }
 
+@(private)
 framebuffer_size_callback :: proc "c" (
 	window: glfw.WindowHandle,
 	width, height: i32,
