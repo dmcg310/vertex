@@ -86,7 +86,9 @@ destroy_instance :: proc(instance: Instance) {
 		)
 	}
 
-	vk.DestroyInstance(instance.instance, nil)
+	if instance.instance != nil {
+		vk.DestroyInstance(instance.instance, nil)
+	}
 
 	fmt.println("Vulkan instance destroyed")
 }
@@ -201,12 +203,10 @@ populate_debug_messenger_create_info :: proc(
 ) {
 	create_info.sType = vk.StructureType.DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT
 	create_info.messageSeverity = {
-		vk.DebugUtilsMessageSeverityFlagsEXT.VERBOSE,
 		vk.DebugUtilsMessageSeverityFlagsEXT.WARNING,
 		vk.DebugUtilsMessageSeverityFlagsEXT.ERROR,
 	}
 	create_info.messageType = {
-		vk.DebugUtilsMessageTypeFlagsEXT.GENERAL,
 		vk.DebugUtilsMessageTypeFlagsEXT.VALIDATION,
 		vk.DebugUtilsMessageTypeFlagsEXT.PERFORMANCE,
 	}

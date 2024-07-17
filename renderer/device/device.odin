@@ -1,10 +1,15 @@
 package device
 
+import "../instance"
+import "../util"
 import "core:fmt"
 import vk "vendor:vulkan"
 
 Device :: struct {
 	physical_device: vk.PhysicalDevice,
+	logical_device:  vk.Device,
+	graphics_queue:  vk.Queue,
+	properties:      vk.PhysicalDeviceProperties,
 }
 
 QueueFamily :: enum {
@@ -17,7 +22,7 @@ QueueFamilyIndices :: struct {
 }
 
 
-pick_physical_device :: proc(instance: vk.Instance) {
+pick_physical_device :: proc(instance: vk.Instance) -> Device {
 	device := Device{}
 	device.physical_device = nil
 
@@ -40,13 +45,74 @@ pick_physical_device :: proc(instance: vk.Instance) {
 		}
 	}
 
-	if highest_score == 0 {
+	if highest_score == 0 || device.physical_device == nil {
 		panic("Failed to find a suitable GPU")
 	}
 
-	if device.physical_device == nil {
-		panic("Failed to find a suitable GPU")
+	vk.GetPhysicalDeviceProperties(device.physical_device, &device.properties)
+	display_device_properties(device.properties)
+
+	return device
+}
+
+create_logical_device :: proc(_instance: instance.Instance, device: ^Device) {
+	indices := find_queue_families(device.physical_device)
+
+	queue_priority: f32 = 1.0
+
+	queue_create_info := vk.DeviceQueueCreateInfo{}
+	queue_create_info.sType = vk.StructureType.DEVICE_QUEUE_CREATE_INFO
+	queue_create_info.queueFamilyIndex = u32(indices.data[.Graphics])
+	queue_create_info.queueCount = 1
+	queue_create_info.pQueuePriorities = &queue_priority
+
+	device_features := vk.PhysicalDeviceFeatures{}
+
+	create_info := vk.DeviceCreateInfo{}
+	create_info.sType = vk.StructureType.DEVICE_CREATE_INFO
+	create_info.pQueueCreateInfos = &queue_create_info
+	create_info.queueCreateInfoCount = 1
+	create_info.pEnabledFeatures = &device_features
+	create_info.enabledExtensionCount = 0
+
+	if _instance.validation_layers_enabled {
+		create_info.enabledLayerCount = u32(len(instance.VALIDATION_LAYERS))
+		create_info.ppEnabledLayerNames = raw_data(
+			util.dynamic_array_of_strings_to_cstrings(
+				instance.VALIDATION_LAYERS,
+			),
+		)
+	} else {
+		create_info.enabledLayerCount = 0
 	}
+
+	if result := vk.CreateDevice(
+		device.physical_device,
+		&create_info,
+		nil,
+		&device.logical_device,
+	); result != vk.Result.SUCCESS {
+		panic("Failed to create logical device")
+	}
+
+	vk.GetDeviceQueue(
+		device.logical_device,
+		u32(indices.data[.Graphics]),
+		0,
+		&device.graphics_queue,
+	)
+
+	vk.load_proc_addresses(device.logical_device)
+
+	fmt.println("Vulkan logical device created")
+}
+
+destroy_logical_device :: proc(device: Device) {
+	if device.logical_device != nil {
+		vk.DestroyDevice(device.logical_device, nil)
+	}
+
+	fmt.println("Vulkan logical device destroyed")
 }
 
 @(private)
@@ -98,4 +164,34 @@ find_queue_families :: proc(device: vk.PhysicalDevice) -> QueueFamilyIndices {
 	}
 
 	return indices
+}
+
+@(private)
+display_device_properties :: proc(properties: vk.PhysicalDeviceProperties) {
+	fmt.printf("GPU Name: %s\n", properties.deviceName)
+	fmt.printf("Driver Version: %d\n", properties.driverVersion)
+	fmt.printf("Vendor ID: %d\n", properties.vendorID)
+	fmt.printf("Device ID: %d\n", properties.deviceID)
+	fmt.printf(
+		"Device Type: %s\n",
+		device_type_to_string(properties.deviceType),
+	)
+}
+
+@(private)
+device_type_to_string :: proc(deviceType: vk.PhysicalDeviceType) -> string {
+	switch deviceType {
+	case vk.PhysicalDeviceType.INTEGRATED_GPU:
+		return "Integrated GPU"
+	case vk.PhysicalDeviceType.DISCRETE_GPU:
+		return "Discrete GPU"
+	case vk.PhysicalDeviceType.VIRTUAL_GPU:
+		return "Virtual GPU"
+	case vk.PhysicalDeviceType.CPU:
+		return "CPU"
+	case vk.PhysicalDeviceType.OTHER:
+		return "Other"
+	}
+
+	return "Unknown"
 }

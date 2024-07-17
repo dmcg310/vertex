@@ -1,6 +1,7 @@
 package window
 
 import "../util"
+import "core:fmt"
 import "vendor:glfw"
 import vk "vendor:vulkan"
 
@@ -28,6 +29,8 @@ init_window :: proc(width, height: i32, title: string) -> Window {
 
 	glfw.WindowHint(glfw.CLIENT_API, glfw.NO_API)
 	glfw.SetFramebufferSizeCallback(window.handle, framebuffer_size_callback)
+
+	fmt.println("Window initialized")
 
 	return window
 }
@@ -58,6 +61,8 @@ poll_window_events :: proc() {
 destroy_window :: proc(window: Window) {
 	glfw.DestroyWindow(window.handle)
 	glfw.Terminate()
+
+	fmt.println("Window destroyed")
 }
 
 framebuffer_size_callback :: proc "c" (
