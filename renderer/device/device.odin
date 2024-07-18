@@ -17,6 +17,7 @@ Device :: struct {
 	graphics_queue:  vk.Queue,
 	properties:      vk.PhysicalDeviceProperties,
 	surface:         Surface,
+	present_queue:   vk.Queue,
 }
 
 QueueFamily :: enum {
@@ -68,22 +69,36 @@ create_logical_device :: proc(
 ) {
 	indices := find_queue_families(device.physical_device, surface.surface)
 
+	unique_indices: map[int]b8
+	for i in indices.data do unique_indices[i] = true
+
 	queue_priority: f32 = 1.0
 
-	queue_create_info := vk.DeviceQueueCreateInfo{}
-	queue_create_info.sType = vk.StructureType.DEVICE_QUEUE_CREATE_INFO
-	queue_create_info.queueFamilyIndex = u32(indices.data[.Graphics])
-	queue_create_info.queueCount = 1
-	queue_create_info.pQueuePriorities = &queue_priority
+	queue_create_infos := [dynamic]vk.DeviceQueueCreateInfo{}
+
+	for k, _ in unique_indices {
+		queue_create_info := vk.DeviceQueueCreateInfo{}
+
+		queue_create_info.sType = vk.StructureType.DEVICE_QUEUE_CREATE_INFO
+		queue_create_info.queueFamilyIndex = u32(indices.data[.Graphics])
+		queue_create_info.queueCount = 1
+		queue_create_info.pQueuePriorities = &queue_priority
+
+		append(&queue_create_infos, queue_create_info)
+	}
 
 	device_features := vk.PhysicalDeviceFeatures{}
 
 	create_info := vk.DeviceCreateInfo{}
 	create_info.sType = vk.StructureType.DEVICE_CREATE_INFO
-	create_info.pQueueCreateInfos = &queue_create_info
-	create_info.queueCreateInfoCount = 1
+	create_info.enabledExtensionCount = u32(len(DEVICE_EXTENSIONS))
+	create_info.ppEnabledExtensionNames = raw_data(
+		util.dynamic_array_of_strings_to_cstrings(DEVICE_EXTENSIONS),
+	)
+	create_info.pQueueCreateInfos = raw_data(queue_create_infos)
+	create_info.queueCreateInfoCount = u32(len(queue_create_infos))
 	create_info.pEnabledFeatures = &device_features
-	create_info.enabledExtensionCount = 0
+	create_info.enabledLayerCount = 0
 
 	if _instance.validation_layers_enabled {
 		create_info.enabledLayerCount = u32(len(instance.VALIDATION_LAYERS))
