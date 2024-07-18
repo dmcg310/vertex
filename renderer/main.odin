@@ -22,7 +22,7 @@ main :: proc() {
 
 	device.pick_physical_device(&_device, _instance.instance)
 
-	device.create_logical_device(&_device, _instance)
+	device.create_logical_device(&_device, _instance, _surface)
 	defer device.destroy_logical_device(_device)
 
 	for !window.is_window_closed(_window) {

@@ -28,6 +28,8 @@ QueueFamilyIndices :: struct {
 	data: [QueueFamily]int,
 }
 
+DEVICE_EXTENSIONS := [dynamic]string{"VK_KHR_swapchain"}
+
 create_device :: proc() -> Device {
 	return Device{}
 }
@@ -59,8 +61,12 @@ pick_physical_device :: proc(device: ^Device, instance: vk.Instance) {
 	}
 }
 
-create_logical_device :: proc(device: ^Device, _instance: instance.Instance) {
-	indices := find_queue_families(device.physical_device)
+create_logical_device :: proc(
+	device: ^Device,
+	_instance: instance.Instance,
+	surface: Surface,
+) {
+	indices := find_queue_families(device.physical_device, surface.surface)
 
 	queue_priority: f32 = 1.0
 
@@ -159,11 +165,18 @@ is_device_suitable :: proc(device: vk.PhysicalDevice) -> int {
 		return 0
 	}
 
+	if !check_device_extension_support(device) {
+		return 0
+	}
+
 	return score
 }
 
 @(private)
-find_queue_families :: proc(device: vk.PhysicalDevice) -> QueueFamilyIndices {
+find_queue_families :: proc(
+	device: vk.PhysicalDevice,
+	surface: vk.SurfaceKHR,
+) -> QueueFamilyIndices {
 	indices := QueueFamilyIndices{}
 
 	queue_family_count: u32 = 0
@@ -181,9 +194,53 @@ find_queue_families :: proc(device: vk.PhysicalDevice) -> QueueFamilyIndices {
 		   indices.data[.Graphics] == -1 {
 			indices.data[.Graphics] = i
 		}
+
+		present_support: b32
+		vk.GetPhysicalDeviceSurfaceSupportKHR(
+			device,
+			u32(i),
+			surface,
+			&present_support,
+		)
+		if present_support && indices.data[.Present] == -1 {
+			indices.data[.Present] = i
+		}
 	}
 
 	return indices
+}
+
+@(private)
+check_device_extension_support :: proc(device: vk.PhysicalDevice) -> bool {
+	ext_count: u32
+	vk.EnumerateDeviceExtensionProperties(device, nil, &ext_count, nil)
+
+	available_extensions := make([]vk.ExtensionProperties, ext_count)
+	vk.EnumerateDeviceExtensionProperties(
+		device,
+		nil,
+		&ext_count,
+		raw_data(available_extensions),
+	)
+
+	for ext in DEVICE_EXTENSIONS {
+		found: b32
+
+		for available_ext in &available_extensions {
+			temp := available_ext.extensionName
+
+			if util.string_from_bytes(temp[:]) == ext {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return false
+		}
+	}
+
+	return true
 }
 
 @(private)
