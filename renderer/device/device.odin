@@ -4,6 +4,7 @@ import "../instance"
 import "../util"
 import "../window"
 import "core:fmt"
+import "core:math"
 import "vendor:glfw"
 import vk "vendor:vulkan"
 
@@ -29,13 +30,32 @@ QueueFamilyIndices :: struct {
 	data: [QueueFamily]int,
 }
 
+SwapChainSupportDetails :: struct {
+	capabilities:  vk.SurfaceCapabilitiesKHR,
+	formats:       []vk.SurfaceFormatKHR,
+	present_modes: []vk.PresentModeKHR,
+}
+
+SwapChain :: struct {
+	swap_chain:   vk.SwapchainKHR,
+	format:       vk.SurfaceFormatKHR,
+	extent_2d:    vk.Extent2D,
+	images:       []vk.Image,
+	image_views:  []vk.ImageView,
+	framebuffers: []vk.Framebuffer,
+}
+
 DEVICE_EXTENSIONS := [dynamic]string{"VK_KHR_swapchain"}
 
 create_device :: proc() -> Device {
 	return Device{}
 }
 
-pick_physical_device :: proc(device: ^Device, instance: vk.Instance) {
+pick_physical_device :: proc(
+	device: ^Device,
+	instance: vk.Instance,
+	surface: vk.SurfaceKHR,
+) {
 	device.physical_device = nil
 
 	device_count: u32 = 0
@@ -50,7 +70,7 @@ pick_physical_device :: proc(device: ^Device, instance: vk.Instance) {
 
 	highest_score := 0
 	for _device in devices {
-		score := is_device_suitable(_device)
+		score := is_device_suitable(_device, surface)
 		if score > highest_score {
 			device.physical_device = _device
 			highest_score = score
@@ -145,6 +165,101 @@ create_surface :: proc(
 	return surface
 }
 
+create_swap_chain :: proc(
+	device: Device,
+	surface: Surface,
+	window: ^window.Window,
+) -> SwapChain {
+	swap_chain := SwapChain{}
+
+	swap_chain_support := query_swap_chain_support(
+		device.physical_device,
+		surface.surface,
+	)
+	surface_format := choose_swap_surface_format(swap_chain_support.formats)
+	present_mode := choose_swap_present_mode(swap_chain_support.present_modes)
+	extent_2d := choose_swap_extent(swap_chain_support.capabilities, window)
+
+	image_count := swap_chain_support.capabilities.minImageCount + 1
+
+	if swap_chain_support.capabilities.maxImageCount > 0 &&
+	   image_count > swap_chain_support.capabilities.maxImageCount {
+		image_count = swap_chain_support.capabilities.maxImageCount
+	}
+
+	create_info := vk.SwapchainCreateInfoKHR{}
+	create_info.sType = vk.StructureType.SWAPCHAIN_CREATE_INFO_KHR
+	create_info.surface = surface.surface
+	create_info.minImageCount = image_count
+	create_info.imageFormat = surface_format.format
+	create_info.imageColorSpace = surface_format.colorSpace
+	create_info.imageExtent = extent_2d
+	create_info.imageArrayLayers = 1
+	create_info.imageUsage = vk.ImageUsageFlags{.COLOR_ATTACHMENT}
+
+	indices := find_queue_families(device.physical_device, surface.surface)
+	queue_family_indices := []u32 {
+		u32(indices.data[.Graphics]),
+		u32(indices.data[.Present]),
+	}
+
+	if indices.data[.Graphics] != indices.data[.Present] {
+		create_info.imageSharingMode = vk.SharingMode.CONCURRENT
+		create_info.queueFamilyIndexCount = 2
+		create_info.pQueueFamilyIndices = raw_data(queue_family_indices)
+	} else {
+		create_info.imageSharingMode = vk.SharingMode.EXCLUSIVE
+		create_info.queueFamilyIndexCount = 0
+		create_info.pQueueFamilyIndices = nil
+	}
+
+	create_info.preTransform = swap_chain_support.capabilities.currentTransform
+	create_info.compositeAlpha = vk.CompositeAlphaFlagsKHR{.OPAQUE}
+	create_info.presentMode = present_mode
+	create_info.clipped = true
+	create_info.oldSwapchain = vk.SwapchainKHR(0)
+
+	if result := vk.CreateSwapchainKHR(
+		device.logical_device,
+		&create_info,
+		nil,
+		&swap_chain.swap_chain,
+	); result != vk.Result.SUCCESS {
+		panic("Failed to create swap chain")
+	}
+
+	swap_chain.format = surface_format
+	swap_chain.extent_2d = extent_2d
+
+	vk.GetSwapchainImagesKHR(
+		device.logical_device,
+		swap_chain.swap_chain,
+		&image_count,
+		nil,
+	)
+
+	swap_chain.images = make([]vk.Image, image_count)
+	vk.GetSwapchainImagesKHR(
+		device.logical_device,
+		swap_chain.swap_chain,
+		&image_count,
+		raw_data(swap_chain.images),
+	)
+
+	swap_chain.image_views = []vk.ImageView{}
+	swap_chain.framebuffers = []vk.Framebuffer{}
+
+	fmt.println("Vulkan swap chain created")
+
+	return swap_chain
+}
+
+destroy_swap_chain :: proc(device: Device, swap_chain: SwapChain) {
+	vk.DestroySwapchainKHR(device.logical_device, swap_chain.swap_chain, nil)
+
+	fmt.println("Vulkan swap chain destroyed")
+}
+
 destroy_surface :: proc(
 	surface: Surface,
 	instance: instance.Instance,
@@ -162,7 +277,10 @@ destroy_logical_device :: proc(device: Device) {
 }
 
 @(private)
-is_device_suitable :: proc(device: vk.PhysicalDevice) -> int {
+is_device_suitable :: proc(
+	device: vk.PhysicalDevice,
+	surface: vk.SurfaceKHR,
+) -> int {
 	device_properties := vk.PhysicalDeviceProperties{}
 	device_features := vk.PhysicalDeviceFeatures{}
 
@@ -181,6 +299,18 @@ is_device_suitable :: proc(device: vk.PhysicalDevice) -> int {
 	}
 
 	if !check_device_extension_support(device) {
+		return 0
+	}
+
+	swap_chain_adequate := false
+	if check_device_extension_support(device) {
+		swap_chain_support := query_swap_chain_support(device, surface)
+		swap_chain_adequate =
+			len(swap_chain_support.formats) > 0 &&
+			len(swap_chain_support.present_modes) > 0
+	}
+
+	if !swap_chain_adequate {
 		return 0
 	}
 
@@ -259,11 +389,124 @@ check_device_extension_support :: proc(device: vk.PhysicalDevice) -> bool {
 }
 
 @(private)
+query_swap_chain_support :: proc(
+	physical_device: vk.PhysicalDevice,
+	surface: vk.SurfaceKHR,
+) -> SwapChainSupportDetails {
+	details := SwapChainSupportDetails{}
+
+	vk.GetPhysicalDeviceSurfaceCapabilitiesKHR(
+		physical_device,
+		surface,
+		&details.capabilities,
+	)
+
+	format_count: u32 = 0
+	vk.GetPhysicalDeviceSurfaceFormatsKHR(
+		physical_device,
+		surface,
+		&format_count,
+		nil,
+	)
+
+	if format_count != 0 {
+		details.present_modes = make([]vk.PresentModeKHR, format_count)
+
+		vk.GetPhysicalDeviceSurfacePresentModesKHR(
+			physical_device,
+			surface,
+			&format_count,
+			raw_data(details.present_modes),
+		)
+	}
+
+	present_count: u32 = 0
+	vk.GetPhysicalDeviceSurfacePresentModesKHR(
+		physical_device,
+		surface,
+		&present_count,
+		nil,
+	)
+
+	if present_count != 0 {
+		details.formats = make([]vk.SurfaceFormatKHR, present_count)
+
+		vk.GetPhysicalDeviceSurfaceFormatsKHR(
+			physical_device,
+			surface,
+			&present_count,
+			raw_data(details.formats),
+		)
+	}
+
+	return details
+}
+
+@(private)
+choose_swap_surface_format :: proc(
+	available_formats: []vk.SurfaceFormatKHR,
+) -> vk.SurfaceFormatKHR {
+	for available_format in available_formats {
+		if available_format.format == vk.Format.B8G8R8A8_SRGB &&
+		   available_format.colorSpace == vk.ColorSpaceKHR.SRGB_NONLINEAR {
+			return available_format
+		}
+	}
+
+	return available_formats[0]
+}
+
+@(private)
+choose_swap_present_mode :: proc(
+	available_present_modes: []vk.PresentModeKHR,
+) -> vk.PresentModeKHR {
+
+	for available_present_mode in available_present_modes {
+		if available_present_mode == vk.PresentModeKHR.MAILBOX {
+			return available_present_mode
+		}
+	}
+
+	return vk.PresentModeKHR.FIFO
+}
+
+@(private)
+choose_swap_extent :: proc(
+	capabilities: vk.SurfaceCapabilitiesKHR,
+	_window: ^window.Window,
+) -> vk.Extent2D {
+	if capabilities.currentExtent.width != 0xFFFFFFFF {
+		return capabilities.currentExtent
+	}
+
+	width, height := glfw.GetFramebufferSize(_window.handle)
+
+	actual_extent := vk.Extent2D {
+		width  = u32(width),
+		height = u32(height),
+	}
+
+	actual_extent.width = math.clamp(
+		actual_extent.width,
+		capabilities.minImageExtent.width,
+		capabilities.maxImageExtent.width,
+	)
+
+	actual_extent.height = math.clamp(
+		actual_extent.height,
+		capabilities.minImageExtent.height,
+		capabilities.maxImageExtent.height,
+	)
+
+	return actual_extent
+}
+
+@(private)
 display_device_properties :: proc(properties: vk.PhysicalDeviceProperties) {
-	fmt.printf("GPU Name: %s\n", properties.deviceName)
-	fmt.printf("Driver Version: %d\n", properties.driverVersion)
-	fmt.printf("Vendor ID: %d\n", properties.vendorID)
-	fmt.printf("Device ID: %d\n", properties.deviceID)
+	fmt.printf("GPU Name: %s -> ", properties.deviceName)
+	fmt.printf("Driver Version: %d -> ", properties.driverVersion)
+	fmt.printf("Vendor ID: %d -> ", properties.vendorID)
+	fmt.printf("Device ID: %d -> ", properties.deviceID)
 	fmt.printf(
 		"Device Type: %s\n",
 		device_type_to_string(properties.deviceType),
