@@ -1,34 +1,84 @@
 package main
 
+import "core:fmt"
 import "device"
 import "instance"
+import "swapchain"
+import vk "vendor:vulkan"
 import "window"
 
 WIDTH :: 1600
 HEIGHT :: 900
 TITLE :: "Vertex"
 
+Renderer :: struct {
+	_window:     window.Window,
+	_instance:   instance.Instance,
+	_device:     device.Device,
+	_surface:    device.Surface,
+	_swap_chain: swapchain.SwapChain,
+}
+
 main :: proc() {
-	_window := window.init_window(WIDTH, HEIGHT, TITLE)
-	defer window.destroy_window(_window)
+	renderer := Renderer{}
 
-	_instance := instance.create_instance(true)
-	defer instance.destroy_instance(_instance)
+	init_renderer(&renderer)
 
-	_device := device.create_device()
-
-	_surface := device.create_surface(_instance, &_window)
-	defer device.destroy_surface(_surface, _instance, &_window)
-
-	device.pick_physical_device(&_device, _instance.instance, _surface.surface)
-
-	device.create_logical_device(&_device, _instance, _surface)
-	defer device.destroy_logical_device(_device)
-
-	_swap_chain := device.create_swap_chain(_device, _surface, &_window)
-	defer device.destroy_swap_chain(_device, _swap_chain)
-
-	for !window.is_window_closed(_window) {
+	for !window.is_window_closed(renderer._window) {
 		window.poll_window_events()
 	}
+
+	shutdown_renderer(&renderer)
+}
+
+init_renderer :: proc(renderer: ^Renderer) {
+	renderer._window = window.init_window(WIDTH, HEIGHT, TITLE)
+	renderer._instance = instance.create_instance(true)
+	renderer._device = device.create_device()
+	renderer._surface = device.create_surface(
+		renderer._instance,
+		&renderer._window,
+	)
+	device.pick_physical_device(
+		&renderer._device,
+		renderer._instance.instance,
+		renderer._surface.surface,
+	)
+	device.create_logical_device(
+		&renderer._device,
+		renderer._instance,
+		renderer._surface,
+	)
+	renderer._swap_chain = swapchain.create_swap_chain(
+		renderer._device.logical_device,
+		renderer._device.physical_device,
+		renderer._surface.surface,
+		&renderer._window,
+	)
+
+	vk.GetPhysicalDeviceProperties(
+		renderer._device.physical_device,
+		&renderer._device.properties,
+	)
+	device.display_device_properties(renderer._device.properties)
+
+	fmt.println("Renderer initialized")
+}
+
+
+shutdown_renderer :: proc(renderer: ^Renderer) {
+	swapchain.destroy_swap_chain(
+		renderer._device.logical_device,
+		renderer._swap_chain,
+	)
+	device.destroy_logical_device(renderer._device)
+	device.destroy_surface(
+		renderer._surface,
+		renderer._instance,
+		&renderer._window,
+	)
+	instance.destroy_instance(renderer._instance)
+	window.destroy_window(renderer._window)
+
+	fmt.println("Renderer shutdown")
 }
