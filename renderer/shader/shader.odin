@@ -19,8 +19,10 @@ read_shaders :: proc(paths: []string) -> (Shaders, bool) {
 		}
 
 		if i == 0 {
+			fmt.printfln("%s loaded", path)
 			shaders.vertex_shader = data
 		} else {
+			fmt.printfln("%s loaded", path)
 			shaders.fragment_shader = data
 		}
 	}

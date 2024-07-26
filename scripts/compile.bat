@@ -11,7 +11,7 @@ if %ERRORLEVEL% neq 0 (
     set GLSLC=glslc
 )
 
-%GLSLC% ../shaders/vertex.glsl -o ../shaders/vert.spv
-%GLSLC% ../shaders/fragment.glsl -o ../shaders/frag.spv
+%GLSLC% shaders/shader.vert -o shaders/vert.spv
+%GLSLC% shaders/shader.frag -o shaders/frag.spv
 echo Compilation complete.
 pause

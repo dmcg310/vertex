@@ -11,6 +11,6 @@ else
     GLSLC=glslc
 fi
 
-"$GLSLC" ../shaders/shader.vert -o ../shaders/vert.spv
-"$GLSLC" ../shaders/shader.frag -o ../shaders/frag.spv
+"$GLSLC" shaders/shader.vert -o shaders/vert.spv
+"$GLSLC" shaders/shader.frag -o shaders/frag.spv
 echo "Compilation complete."

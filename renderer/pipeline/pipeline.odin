@@ -2,10 +2,11 @@ package pipeline
 
 import "../shader"
 import "../swapchain"
+import "core:fmt"
 import vk "vendor:vulkan"
 
-VERT_PATH :: "shaders/vertex.spv"
-FRAG_PATH :: "shaders/fragment.spv"
+VERT_PATH :: "shaders/vert.spv"
+FRAG_PATH :: "shaders/frag.spv"
 
 DYNAMIC_STATES := []vk.DynamicState {
 	vk.DynamicState.VIEWPORT,
@@ -44,12 +45,16 @@ create_graphics_pipeline :: proc(device: vk.Device) -> GraphicsPipeline {
 	vk.DestroyShaderModule(device, vert_shader_module, nil)
 	vk.DestroyShaderModule(device, frag_shader_module, nil)
 
+	fmt.println("Vulkan graphics pipeline created")
+
 	return pipeline
 }
 
 destroy_pipeline :: proc(device: vk.Device, pipeline: GraphicsPipeline) {
 	vk.DestroyPipeline(device, pipeline.pipeline, nil)
 	vk.DestroyPipelineLayout(device, pipeline.pipeline_layout, nil)
+
+	fmt.println("Vulkan graphics pipeline destroyed")
 }
 
 @(private)
