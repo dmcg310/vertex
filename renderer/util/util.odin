@@ -1,5 +1,7 @@
 package util
 
+import "core:fmt"
+import "core:os"
 import "core:strings"
 
 to_cstring :: proc(s: string) -> cstring {
@@ -24,4 +26,14 @@ dynamic_array_of_strings_to_cstrings :: proc(
 	}
 
 	return result
+}
+
+read_file :: proc(path: string) -> ([]byte, bool) {
+	data, ok := os.read_entire_file(path)
+	if !ok {
+		fmt.eprintfln("Failed to read file: %s", path)
+		return nil, false
+	}
+
+	return data, true
 }

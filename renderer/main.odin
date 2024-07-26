@@ -3,6 +3,7 @@ package main
 import "core:fmt"
 import "device"
 import "instance"
+import "pipeline"
 import "swapchain"
 import vk "vendor:vulkan"
 import "window"
@@ -17,6 +18,7 @@ Renderer :: struct {
 	_device:     device.Device,
 	_surface:    device.Surface,
 	_swap_chain: swapchain.SwapChain,
+	_pipeline:   pipeline.GraphicsPipeline,
 }
 
 main :: proc() {
@@ -56,6 +58,10 @@ init_renderer :: proc(renderer: ^Renderer) {
 		&renderer._window,
 	)
 
+	renderer._pipeline = pipeline.create_graphics_pipeline(
+		renderer._device.logical_device,
+	)
+
 	vk.GetPhysicalDeviceProperties(
 		renderer._device.physical_device,
 		&renderer._device.properties,
@@ -67,6 +73,7 @@ init_renderer :: proc(renderer: ^Renderer) {
 
 
 shutdown_renderer :: proc(renderer: ^Renderer) {
+	// pipeline.destroy_pipeline(renderer._device.logical_device, renderer._pipeline)
 	swapchain.destroy_swap_chain(
 		renderer._device.logical_device,
 		renderer._swap_chain,
