@@ -103,11 +103,17 @@ create_swap_chain :: proc(
 
 	fmt.println("Vulkan swap chain created")
 
+	create_image_views(&swap_chain, device)
+
 	return swap_chain
 }
 
 destroy_swap_chain :: proc(device: vk.Device, swap_chain: SwapChain) {
 	vk.DestroySwapchainKHR(device, swap_chain.swap_chain, nil)
+
+	for image_view in swap_chain.image_views {
+		vk.DestroyImageView(device, image_view, nil)
+	}
 
 	fmt.println("Vulkan swap chain destroyed")
 }
@@ -161,6 +167,39 @@ query_swap_chain_support :: proc(
 	}
 
 	return details
+}
+
+@(private)
+create_image_views :: proc(swap_chain: ^SwapChain, device: vk.Device) {
+	swap_chain.image_views = make([]vk.ImageView, len(swap_chain.images))
+
+	for image, i in swap_chain.images {
+		create_info := vk.ImageViewCreateInfo{}
+		create_info.sType = vk.StructureType.IMAGE_VIEW_CREATE_INFO
+		create_info.image = swap_chain.images[i]
+		create_info.viewType = vk.ImageViewType.D2
+		create_info.format = swap_chain.format.format
+
+		create_info.components.r = vk.ComponentSwizzle.IDENTITY
+		create_info.components.g = vk.ComponentSwizzle.IDENTITY
+		create_info.components.b = vk.ComponentSwizzle.IDENTITY
+		create_info.components.a = vk.ComponentSwizzle.IDENTITY
+
+		create_info.subresourceRange.aspectMask = vk.ImageAspectFlags{.COLOR}
+		create_info.subresourceRange.baseMipLevel = 0
+		create_info.subresourceRange.levelCount = 1
+		create_info.subresourceRange.baseArrayLayer = 0
+		create_info.subresourceRange.layerCount = 1
+
+		if result := vk.CreateImageView(
+			device,
+			&create_info,
+			nil,
+			&swap_chain.image_views[i],
+		); result != vk.Result.SUCCESS {
+			panic("Failed to create image views")
+		}
+	}
 }
 
 @(private)
