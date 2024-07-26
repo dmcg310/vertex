@@ -57,7 +57,6 @@ init_renderer :: proc(renderer: ^Renderer) {
 		renderer._surface.surface,
 		&renderer._window,
 	)
-
 	renderer._pipeline = pipeline.create_graphics_pipeline(
 		renderer._device.logical_device,
 	)
@@ -73,7 +72,10 @@ init_renderer :: proc(renderer: ^Renderer) {
 
 
 shutdown_renderer :: proc(renderer: ^Renderer) {
-	// pipeline.destroy_pipeline(renderer._device.logical_device, renderer._pipeline)
+	pipeline.destroy_pipeline(
+		renderer._device.logical_device,
+		renderer._pipeline,
+	)
 	swapchain.destroy_swap_chain(
 		renderer._device.logical_device,
 		renderer._swap_chain,
