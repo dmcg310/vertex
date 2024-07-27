@@ -9,15 +9,12 @@ import vk "vendor:vulkan"
 VERT_PATH :: "shaders/vert.spv"
 FRAG_PATH :: "shaders/frag.spv"
 
-DYNAMIC_STATES := []vk.DynamicState {
-	vk.DynamicState.VIEWPORT,
-	vk.DynamicState.SCISSOR,
-}
+DYNAMIC_STATES := []vk.DynamicState{.VIEWPORT, .SCISSOR}
 
 GraphicsPipeline :: struct {
 	pipeline:        vk.Pipeline,
 	pipeline_layout: vk.PipelineLayout,
-	render_pass:     render_pass.RenderPass,
+	_render_pass:    render_pass.RenderPass,
 }
 
 create_graphics_pipeline :: proc(
@@ -40,12 +37,70 @@ create_graphics_pipeline :: proc(
 		device,
 	)
 
-	shader_stages := [2]vk.PipelineShaderStageCreateInfo {
-		shader.create_shader_stage({.VERTEX}, vert_shader_module),
-		shader.create_shader_stage({.FRAGMENT}, frag_shader_module),
+	shader_stages := []vk.PipelineShaderStageCreateInfo {
+		shader.create_shader_stage(
+			vk.ShaderStageFlags{.VERTEX},
+			vert_shader_module,
+		),
+		shader.create_shader_stage(
+			vk.ShaderStageFlags{.FRAGMENT},
+			frag_shader_module,
+		),
 	}
 
-	pipeline.render_pass = render_pass.create_render_pass(swap_chain, device)
+	pipeline._render_pass = render_pass.create_render_pass(swap_chain, device)
+
+	pipeline.pipeline_layout = create_pipeline_layout(device)
+
+	vertex_input := create_vertex_input()
+	input_assembly := create_input_assembly(
+		vk.PrimitiveTopology.TRIANGLE_LIST,
+		false,
+	)
+
+	viewport := create_viewport(
+		f32(swap_chain.extent_2d.width),
+		f32(swap_chain.extent_2d.height),
+		swap_chain,
+	)
+	viewport_state := create_viewport_state()
+
+	rasterizer := create_rasterizer(
+		vk.PolygonMode.FILL,
+		1.0,
+		vk.CullModeFlags{.BACK},
+		vk.FrontFace.COUNTER_CLOCKWISE,
+		false,
+	)
+
+	multisampling := create_multisampling()
+	color_blend_attachment := create_color_blend_attachment(true)
+	color_blending := create_color_blend_state(&color_blend_attachment)
+	dynamic_state := create_dynamic_state()
+
+	pipeline_info := create_pipeline_info(
+		shader_stages,
+		&vertex_input,
+		&input_assembly,
+		&viewport_state,
+		&rasterizer,
+		&multisampling,
+		&color_blending,
+		&dynamic_state,
+		pipeline,
+	)
+
+	if vk.CreateGraphicsPipelines(
+		   device,
+		   0,
+		   1,
+		   &pipeline_info,
+		   nil,
+		   &pipeline.pipeline,
+	   ) !=
+	   .SUCCESS {
+		panic("Failed to create graphics pipeline")
+	}
 
 	vk.DestroyShaderModule(device, vert_shader_module, nil)
 	vk.DestroyShaderModule(device, frag_shader_module, nil)
@@ -56,11 +111,41 @@ create_graphics_pipeline :: proc(
 }
 
 destroy_pipeline :: proc(device: vk.Device, pipeline: GraphicsPipeline) {
-	render_pass.destroy_render_pass(device, pipeline.render_pass)
+	render_pass.destroy_render_pass(device, pipeline._render_pass)
 	vk.DestroyPipeline(device, pipeline.pipeline, nil)
 	vk.DestroyPipelineLayout(device, pipeline.pipeline_layout, nil)
 
 	fmt.println("Vulkan graphics pipeline destroyed")
+}
+
+@(private)
+create_pipeline_info :: proc(
+	shader_stages: []vk.PipelineShaderStageCreateInfo,
+	vertex_input: ^vk.PipelineVertexInputStateCreateInfo,
+	input_assembly: ^vk.PipelineInputAssemblyStateCreateInfo,
+	viewport_state: ^vk.PipelineViewportStateCreateInfo,
+	rasterizer: ^vk.PipelineRasterizationStateCreateInfo,
+	multisampling: ^vk.PipelineMultisampleStateCreateInfo,
+	color_blending: ^vk.PipelineColorBlendStateCreateInfo,
+	dynamic_state: ^vk.PipelineDynamicStateCreateInfo,
+	pipeline: GraphicsPipeline,
+) -> vk.GraphicsPipelineCreateInfo {
+	pipeline_info := vk.GraphicsPipelineCreateInfo{}
+	pipeline_info.sType = .GRAPHICS_PIPELINE_CREATE_INFO
+	pipeline_info.stageCount = u32(len(shader_stages))
+	pipeline_info.pStages = raw_data(shader_stages)
+	pipeline_info.pVertexInputState = vertex_input
+	pipeline_info.pInputAssemblyState = input_assembly
+	pipeline_info.pViewportState = viewport_state
+	pipeline_info.pRasterizationState = rasterizer
+	pipeline_info.pMultisampleState = multisampling
+	pipeline_info.pColorBlendState = color_blending
+	pipeline_info.pDynamicState = dynamic_state
+	pipeline_info.layout = pipeline.pipeline_layout
+	pipeline_info.renderPass = pipeline._render_pass.render_pass
+	pipeline_info.subpass = 0
+
+	return pipeline_info
 }
 
 @(private)
@@ -79,10 +164,11 @@ create_pipeline_layout :: proc(device: vk.Device) -> vk.PipelineLayout {
 
 @(private)
 create_dynamic_state :: proc() -> vk.PipelineDynamicStateCreateInfo {
-	dynamic_state := vk.PipelineDynamicStateCreateInfo{}
-	dynamic_state.sType = vk.StructureType.PIPELINE_DYNAMIC_STATE_CREATE_INFO
-	dynamic_state.dynamicStateCount = u32(len(DYNAMIC_STATES))
-	dynamic_state.pDynamicStates = raw_data(DYNAMIC_STATES)
+	dynamic_state := vk.PipelineDynamicStateCreateInfo {
+		sType             = .PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+		dynamicStateCount = 2,
+		pDynamicStates    = &DYNAMIC_STATES[0],
+	}
 
 	return dynamic_state
 }
@@ -93,6 +179,7 @@ create_viewport_state :: proc() -> vk.PipelineViewportStateCreateInfo {
 	viewport_state.sType = vk.StructureType.PIPELINE_VIEWPORT_STATE_CREATE_INFO
 	viewport_state.viewportCount = 1
 	viewport_state.scissorCount = 1
+
 	return viewport_state
 }
 
@@ -119,6 +206,7 @@ create_input_assembly :: proc(
 	input_assembly.primitiveRestartEnable = b32(
 		restart ? u32(vk.TRUE) : u32(vk.FALSE),
 	)
+
 	return input_assembly
 }
 
