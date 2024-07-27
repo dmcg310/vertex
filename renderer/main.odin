@@ -23,6 +23,7 @@ Renderer :: struct {
 	_pipeline:            pipeline.GraphicsPipeline,
 	_framebuffer_manager: framebuffer.FramebufferManager,
 	_command_pool:        command.CommandPool,
+	_command_buffer:      command.CommandBuffer,
 }
 
 main :: proc() {
@@ -79,6 +80,10 @@ init_renderer :: proc(renderer: ^Renderer) {
 		renderer._device.logical_device,
 		renderer._swap_chain,
 	)
+	renderer._command_buffer = command.create_command_buffer(
+		renderer._device.logical_device,
+		renderer._command_pool,
+	)
 
 	vk.GetPhysicalDeviceProperties(
 		renderer._device.physical_device,
@@ -91,6 +96,10 @@ init_renderer :: proc(renderer: ^Renderer) {
 
 
 shutdown_renderer :: proc(renderer: ^Renderer) {
+	command.destroy_command_pool(
+		&renderer._command_pool,
+		renderer._device.logical_device,
+	)
 	framebuffer.destroy_framebuffer_manager(&renderer._framebuffer_manager)
 	pipeline.destroy_pipeline(
 		renderer._device.logical_device,
