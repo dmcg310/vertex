@@ -1,5 +1,6 @@
 package pipeline
 
+import "../render_pass"
 import "../shader"
 import "../swapchain"
 import "core:fmt"
@@ -16,9 +17,13 @@ DYNAMIC_STATES := []vk.DynamicState {
 GraphicsPipeline :: struct {
 	pipeline:        vk.Pipeline,
 	pipeline_layout: vk.PipelineLayout,
+	render_pass:     render_pass.RenderPass,
 }
 
-create_graphics_pipeline :: proc(device: vk.Device) -> GraphicsPipeline {
+create_graphics_pipeline :: proc(
+	swap_chain: swapchain.SwapChain,
+	device: vk.Device,
+) -> GraphicsPipeline {
 	pipeline := GraphicsPipeline{}
 
 	shaders, ok := shader.read_shaders({VERT_PATH, FRAG_PATH})
@@ -40,7 +45,7 @@ create_graphics_pipeline :: proc(device: vk.Device) -> GraphicsPipeline {
 		shader.create_shader_stage({.FRAGMENT}, frag_shader_module),
 	}
 
-	// TODO
+	pipeline.render_pass = render_pass.create_render_pass(swap_chain, device)
 
 	vk.DestroyShaderModule(device, vert_shader_module, nil)
 	vk.DestroyShaderModule(device, frag_shader_module, nil)
@@ -51,6 +56,7 @@ create_graphics_pipeline :: proc(device: vk.Device) -> GraphicsPipeline {
 }
 
 destroy_pipeline :: proc(device: vk.Device, pipeline: GraphicsPipeline) {
+	render_pass.destroy_render_pass(device, pipeline.render_pass)
 	vk.DestroyPipeline(device, pipeline.pipeline, nil)
 	vk.DestroyPipelineLayout(device, pipeline.pipeline_layout, nil)
 

@@ -58,6 +58,7 @@ init_renderer :: proc(renderer: ^Renderer) {
 		&renderer._window,
 	)
 	renderer._pipeline = pipeline.create_graphics_pipeline(
+		renderer._swap_chain,
 		renderer._device.logical_device,
 	)
 
