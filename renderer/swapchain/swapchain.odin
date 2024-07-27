@@ -15,12 +15,12 @@ SwapChainSupportDetails :: struct {
 }
 
 SwapChain :: struct {
-	swap_chain:   vk.SwapchainKHR,
-	format:       vk.SurfaceFormatKHR,
-	extent_2d:    vk.Extent2D,
-	images:       []vk.Image,
-	image_views:  []vk.ImageView,
-	framebuffers: []vk.Framebuffer,
+	swap_chain:  vk.SwapchainKHR,
+	format:      vk.SurfaceFormatKHR,
+	extent_2d:   vk.Extent2D,
+	images:      []vk.Image,
+	image_views: []vk.ImageView,
+	device:      vk.Device,
 }
 
 create_swap_chain :: proc(
@@ -99,7 +99,7 @@ create_swap_chain :: proc(
 	)
 
 	swap_chain.image_views = []vk.ImageView{}
-	swap_chain.framebuffers = []vk.Framebuffer{}
+	swap_chain.device = device
 
 	fmt.println("Vulkan swap chain created")
 

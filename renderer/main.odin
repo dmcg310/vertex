@@ -2,6 +2,7 @@ package main
 
 import "core:fmt"
 import "device"
+import "framebuffer"
 import "instance"
 import "pipeline"
 import "swapchain"
@@ -13,12 +14,13 @@ HEIGHT :: 900
 TITLE :: "Vertex"
 
 Renderer :: struct {
-	_window:     window.Window,
-	_instance:   instance.Instance,
-	_device:     device.Device,
-	_surface:    device.Surface,
-	_swap_chain: swapchain.SwapChain,
-	_pipeline:   pipeline.GraphicsPipeline,
+	_window:              window.Window,
+	_instance:            instance.Instance,
+	_device:              device.Device,
+	_surface:             device.Surface,
+	_swap_chain:          swapchain.SwapChain,
+	_pipeline:            pipeline.GraphicsPipeline,
+	_framebuffer_manager: framebuffer.FramebufferManager,
 }
 
 main :: proc() {
@@ -61,6 +63,16 @@ init_renderer :: proc(renderer: ^Renderer) {
 		renderer._swap_chain,
 		renderer._device.logical_device,
 	)
+	renderer._framebuffer_manager = framebuffer.create_framebuffer_manager(
+		renderer._swap_chain,
+		renderer._pipeline._render_pass,
+	)
+	for &image_view in renderer._framebuffer_manager.swap_chain.image_views {
+		framebuffer.push_framebuffer(
+			&renderer._framebuffer_manager,
+			&image_view,
+		)
+	}
 
 	vk.GetPhysicalDeviceProperties(
 		renderer._device.physical_device,
@@ -73,6 +85,7 @@ init_renderer :: proc(renderer: ^Renderer) {
 
 
 shutdown_renderer :: proc(renderer: ^Renderer) {
+	framebuffer.destroy_framebuffer_manager(&renderer._framebuffer_manager)
 	pipeline.destroy_pipeline(
 		renderer._device.logical_device,
 		renderer._pipeline,
