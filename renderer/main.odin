@@ -15,6 +15,8 @@ WIDTH :: 1600
 HEIGHT :: 900
 TITLE :: "Vertex"
 
+MAX_FRAMES_IN_FLIGHT :: 2
+
 Renderer :: struct {
 	_window:              window.Window,
 	_instance:            instance.Instance,
@@ -24,12 +26,15 @@ Renderer :: struct {
 	_pipeline:            pipeline.GraphicsPipeline,
 	_framebuffer_manager: framebuffer.FramebufferManager,
 	_command_pool:        command.CommandPool,
-	_command_buffer:      command.CommandBuffer,
-	_sync_object:         synchronization.SyncObject,
+	_command_buffers:     command.CommandBuffer,
+	_sync_objects:        synchronization.SyncObject,
+	current_frame:        u32,
 }
 
 main :: proc() {
-	renderer := Renderer{}
+	renderer := Renderer {
+		current_frame = 0,
+	}
 
 	init_renderer(&renderer)
 
@@ -86,11 +91,11 @@ init_renderer :: proc(renderer: ^Renderer) {
 		renderer._device.logical_device,
 		renderer._swap_chain,
 	)
-	renderer._command_buffer = command.create_command_buffer(
+	renderer._command_buffers = command.create_command_buffers(
 		renderer._device.logical_device,
 		renderer._command_pool,
 	)
-	renderer._sync_object = synchronization.create_sync_object(
+	renderer._sync_objects = synchronization.create_sync_objects(
 		renderer._device.logical_device,
 	)
 
@@ -107,9 +112,15 @@ render :: proc(renderer: ^Renderer) {
 	vk.WaitForFences(
 		renderer._device.logical_device,
 		1,
-		&renderer._sync_object.in_flight_fence,
+		&renderer._sync_objects.in_flight_fences[renderer.current_frame],
 		true,
 		~u64(0),
+	)
+
+	vk.ResetFences(
+		renderer._device.logical_device,
+		1,
+		&renderer._sync_objects.in_flight_fences[renderer.current_frame],
 	)
 
 	image_index: u32
@@ -117,7 +128,7 @@ render :: proc(renderer: ^Renderer) {
 		renderer._device.logical_device,
 		renderer._swap_chain.swap_chain,
 		~u64(0),
-		renderer._sync_object.image_available_semaphore,
+		renderer._sync_objects.image_available_semaphores[renderer.current_frame],
 		0,
 		&image_index,
 	)
@@ -126,16 +137,13 @@ render :: proc(renderer: ^Renderer) {
 		panic("failed to acquire swap chain image")
 	}
 
-	vk.ResetFences(
-		renderer._device.logical_device,
-		1,
-		&renderer._sync_object.in_flight_fence,
+	vk.ResetCommandBuffer(
+		renderer._command_buffers.buffers[renderer.current_frame],
+		{},
 	)
 
-	vk.ResetCommandBuffer(renderer._command_buffer.buffer, {})
-
 	command.record_command_buffer(
-		renderer._command_buffer,
+		renderer._command_buffers.buffers[renderer.current_frame],
 		renderer._framebuffer_manager,
 		renderer._swap_chain,
 		renderer._pipeline,
@@ -145,21 +153,21 @@ render :: proc(renderer: ^Renderer) {
 	submit_info := vk.SubmitInfo {
 		sType                = .SUBMIT_INFO,
 		waitSemaphoreCount   = 1,
-		pWaitSemaphores      = &renderer._sync_object.image_available_semaphore,
+		pWaitSemaphores      = &renderer._sync_objects.image_available_semaphores[renderer.current_frame],
 		pWaitDstStageMask    = &vk.PipelineStageFlags {
 			.COLOR_ATTACHMENT_OUTPUT,
 		},
 		commandBufferCount   = 1,
-		pCommandBuffers      = &renderer._command_buffer.buffer,
+		pCommandBuffers      = &renderer._command_buffers.buffers[renderer.current_frame],
 		signalSemaphoreCount = 1,
-		pSignalSemaphores    = &renderer._sync_object.render_finished_semaphore,
+		pSignalSemaphores    = &renderer._sync_objects.render_finished_semaphores[renderer.current_frame],
 	}
 
 	if vk.QueueSubmit(
 		   renderer._device.graphics_queue,
 		   1,
 		   &submit_info,
-		   renderer._sync_object.in_flight_fence,
+		   renderer._sync_objects.in_flight_fences[renderer.current_frame],
 	   ) !=
 	   .SUCCESS {
 		panic("failed to submit draw command buffer")
@@ -168,7 +176,7 @@ render :: proc(renderer: ^Renderer) {
 	present_info := vk.PresentInfoKHR {
 		sType              = .PRESENT_INFO_KHR,
 		waitSemaphoreCount = 1,
-		pWaitSemaphores    = &renderer._sync_object.render_finished_semaphore,
+		pWaitSemaphores    = &renderer._sync_objects.render_finished_semaphores[renderer.current_frame],
 		swapchainCount     = 1,
 		pSwapchains        = &renderer._swap_chain.swap_chain,
 		pImageIndices      = &image_index,
@@ -178,11 +186,14 @@ render :: proc(renderer: ^Renderer) {
 	if result != vk.Result.SUCCESS {
 		panic("failed to present swap chain image")
 	}
+
+	renderer.current_frame =
+		(renderer.current_frame + 1) % MAX_FRAMES_IN_FLIGHT
 }
 
 shutdown_renderer :: proc(renderer: ^Renderer) {
-	synchronization.destroy_sync_object(
-		&renderer._sync_object,
+	synchronization.destroy_sync_objects(
+		&renderer._sync_objects,
 		renderer._device.logical_device,
 	)
 	command.destroy_command_pool(

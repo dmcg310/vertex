@@ -8,12 +8,14 @@ import "../swapchain"
 import "core:fmt"
 import vk "vendor:vulkan"
 
+MAX_FRAMES_IN_FLIGHT :: 2
+
 CommandPool :: struct {
 	pool: vk.CommandPool,
 }
 
 CommandBuffer :: struct {
-	buffer: vk.CommandBuffer,
+	buffers: [MAX_FRAMES_IN_FLIGHT]vk.CommandBuffer,
 }
 
 create_command_pool :: proc(
@@ -45,32 +47,34 @@ destroy_command_pool :: proc(pool: ^CommandPool, device: vk.Device) {
 	fmt.println("Vulkan command pool destroyed")
 }
 
-create_command_buffer :: proc(
+create_command_buffers :: proc(
 	device: vk.Device,
 	pool: CommandPool,
 ) -> CommandBuffer {
-	command_buffer := CommandBuffer{}
+	command_buffers := CommandBuffer{}
 
 	alloc_info := vk.CommandBufferAllocateInfo{}
 	alloc_info.sType = vk.StructureType.COMMAND_BUFFER_ALLOCATE_INFO
 	alloc_info.commandPool = pool.pool
 	alloc_info.level = vk.CommandBufferLevel.PRIMARY
-	alloc_info.commandBufferCount = 1
+	alloc_info.commandBufferCount = MAX_FRAMES_IN_FLIGHT
 
 	if vk.AllocateCommandBuffers(
 		   device,
 		   &alloc_info,
-		   &command_buffer.buffer,
+		   &command_buffers.buffers[0],
 	   ) !=
 	   vk.Result.SUCCESS {
 		panic("failed to allocate command buffers")
 	}
 
-	return command_buffer
+	fmt.println("Vulkan command buffers allocated")
+
+	return command_buffers
 }
 
 record_command_buffer :: proc(
-	command_buffer: CommandBuffer,
+	command_buffer: vk.CommandBuffer,
 	framebuffer_manager: framebuffer.FramebufferManager,
 	swap_chain: swapchain.SwapChain,
 	graphics_pipeline: pipeline.GraphicsPipeline,
@@ -79,7 +83,7 @@ record_command_buffer :: proc(
 	begin_info := vk.CommandBufferBeginInfo{}
 	begin_info.sType = vk.StructureType.COMMAND_BUFFER_BEGIN_INFO
 
-	if vk.BeginCommandBuffer(command_buffer.buffer, &begin_info) !=
+	if vk.BeginCommandBuffer(command_buffer, &begin_info) !=
 	   vk.Result.SUCCESS {
 		panic("failed to begin recording command buffer")
 	}
@@ -100,16 +104,12 @@ record_command_buffer :: proc(
 	render_pass_info.pClearValues = &clear_color
 
 	vk.CmdBeginRenderPass(
-		command_buffer.buffer,
+		command_buffer,
 		&render_pass_info,
 		vk.SubpassContents.INLINE,
 	)
 
-	vk.CmdBindPipeline(
-		command_buffer.buffer,
-		.GRAPHICS,
-		graphics_pipeline.pipeline,
-	)
+	vk.CmdBindPipeline(command_buffer, .GRAPHICS, graphics_pipeline.pipeline)
 
 	viewport := vk.Viewport {
 		x        = 0.0,
@@ -119,19 +119,19 @@ record_command_buffer :: proc(
 		minDepth = 0.0,
 		maxDepth = 1.0,
 	}
-	vk.CmdSetViewport(command_buffer.buffer, 0, 1, &viewport)
+	vk.CmdSetViewport(command_buffer, 0, 1, &viewport)
 
 	scissor := vk.Rect2D {
 		offset = {0, 0},
 		extent = swap_chain.extent_2d,
 	}
-	vk.CmdSetScissor(command_buffer.buffer, 0, 1, &scissor)
+	vk.CmdSetScissor(command_buffer, 0, 1, &scissor)
 
-	vk.CmdDraw(command_buffer.buffer, 3, 1, 0, 0)
+	vk.CmdDraw(command_buffer, 3, 1, 0, 0)
 
-	vk.CmdEndRenderPass(command_buffer.buffer)
+	vk.CmdEndRenderPass(command_buffer)
 
-	if vk.EndCommandBuffer(command_buffer.buffer) != .SUCCESS {
+	if vk.EndCommandBuffer(command_buffer) != .SUCCESS {
 		panic("Failed to record command buffer")
 	}
 }
