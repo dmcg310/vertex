@@ -15,12 +15,13 @@ SwapChainSupportDetails :: struct {
 }
 
 SwapChain :: struct {
-	swap_chain:  vk.SwapchainKHR,
-	format:      vk.SurfaceFormatKHR,
-	extent_2d:   vk.Extent2D,
-	images:      []vk.Image,
-	image_views: []vk.ImageView,
-	device:      vk.Device,
+	swap_chain:           vk.SwapchainKHR,
+	format:               vk.SurfaceFormatKHR,
+	extent_2d:            vk.Extent2D,
+	images:               []vk.Image,
+	image_views:          []vk.ImageView,
+	device:               vk.Device,
+	queue_family_indices: []u32,
 }
 
 create_swap_chain :: proc(
@@ -58,6 +59,8 @@ create_swap_chain :: proc(
 		u32(indices[shared.QueueFamily.Graphics]),
 		u32(indices[shared.QueueFamily.Present]),
 	}
+
+	swap_chain.queue_family_indices = queue_family_indices
 
 	if indices[shared.QueueFamily.Graphics] !=
 	   indices[shared.QueueFamily.Present] {

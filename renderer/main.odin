@@ -1,5 +1,6 @@
 package main
 
+import "command"
 import "core:fmt"
 import "device"
 import "framebuffer"
@@ -21,6 +22,7 @@ Renderer :: struct {
 	_swap_chain:          swapchain.SwapChain,
 	_pipeline:            pipeline.GraphicsPipeline,
 	_framebuffer_manager: framebuffer.FramebufferManager,
+	_command_pool:        command.CommandPool,
 }
 
 main :: proc() {
@@ -73,6 +75,10 @@ init_renderer :: proc(renderer: ^Renderer) {
 			&image_view,
 		)
 	}
+	renderer._command_pool = command.create_command_pool(
+		renderer._device.logical_device,
+		renderer._swap_chain,
+	)
 
 	vk.GetPhysicalDeviceProperties(
 		renderer._device.physical_device,
