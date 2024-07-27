@@ -71,7 +71,6 @@ create_command_buffer :: proc(
 
 record_command_buffer :: proc(
 	command_buffer: CommandBuffer,
-	_render_pass: render_pass.RenderPass,
 	framebuffer_manager: framebuffer.FramebufferManager,
 	swap_chain: swapchain.SwapChain,
 	graphics_pipeline: pipeline.GraphicsPipeline,
@@ -85,14 +84,13 @@ record_command_buffer :: proc(
 		panic("failed to begin recording command buffer")
 	}
 
-	clear_color := vk.ClearValue{}
-	clear_color.color.float32[0] = 0.0
-	clear_color.color.float32[1] = 0.0
-	clear_color.color.float32[2] = 0.0
+	clear_color := vk.ClearValue {
+		color = {float32 = {0.1, 0.1, 0.1, 1.0}},
+	}
 
 	render_pass_info := vk.RenderPassBeginInfo{}
 	render_pass_info.sType = vk.StructureType.RENDER_PASS_BEGIN_INFO
-	render_pass_info.renderPass = _render_pass.render_pass
+	render_pass_info.renderPass = graphics_pipeline._render_pass.render_pass
 	render_pass_info.framebuffer =
 		framebuffer_manager.framebuffers[image_idx].framebuffer
 	render_pass_info.renderArea.offset.x = 0

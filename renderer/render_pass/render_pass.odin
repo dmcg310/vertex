@@ -18,12 +18,22 @@ create_render_pass :: proc(
 	color_attachment_ref := create_color_attachment_ref(0)
 	sub_pass := create_subpass(&color_attachment_ref)
 
+	dependency := vk.SubpassDependency{}
+	dependency.srcSubpass = vk.SUBPASS_EXTERNAL
+	dependency.dstSubpass = 0
+	dependency.srcStageMask = vk.PipelineStageFlags{.COLOR_ATTACHMENT_OUTPUT}
+	dependency.srcAccessMask = vk.AccessFlags{}
+	dependency.dstStageMask = vk.PipelineStageFlags{.COLOR_ATTACHMENT_OUTPUT}
+	dependency.dstAccessMask = vk.AccessFlags{.COLOR_ATTACHMENT_WRITE}
+
 	render_pass_info := vk.RenderPassCreateInfo{}
 	render_pass_info.sType = vk.StructureType.RENDER_PASS_CREATE_INFO
 	render_pass_info.attachmentCount = 1
 	render_pass_info.pAttachments = &color_attachment
 	render_pass_info.subpassCount = 1
 	render_pass_info.pSubpasses = &sub_pass
+	render_pass_info.dependencyCount = 1
+	render_pass_info.pDependencies = &dependency
 
 	if vk.CreateRenderPass(
 		   device,

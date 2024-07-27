@@ -1,5 +1,6 @@
-package sync
+package synchronization
 
+import "core:fmt"
 import vk "vendor:vulkan"
 
 SyncObject :: struct {
@@ -44,6 +45,8 @@ create_sync_object :: proc(device: vk.Device) -> SyncObject {
 		panic("Failed to create synchronization objects for a frame")
 	}
 
+	fmt.println("Vulkan synchronization objects created")
+
 	return sync_object
 }
 
@@ -51,4 +54,6 @@ destroy_sync_object :: proc(sync_object: ^SyncObject, device: vk.Device) {
 	vk.DestroySemaphore(device, sync_object.image_available_semaphore, nil)
 	vk.DestroySemaphore(device, sync_object.render_finished_semaphore, nil)
 	vk.DestroyFence(device, sync_object.in_flight_fence, nil)
+
+	fmt.println("Vulkan synchronization objects destroyed")
 }

@@ -70,36 +70,39 @@ create_logical_device :: proc(
 		surface.surface,
 	)
 
-	unique_indices: map[int]b8
-	for i in indices.data do unique_indices[i] = true
+	unique_indices := make(map[int]struct {})
+	unique_indices[indices.data[.Graphics]] = {}
+	unique_indices[indices.data[.Present]] = {}
 
 	queue_priority: f32 = 1.0
+	queue_create_infos := make(
+		[dynamic]vk.DeviceQueueCreateInfo,
+		0,
+		len(unique_indices),
+	)
 
-	queue_create_infos := [dynamic]vk.DeviceQueueCreateInfo{}
-
-	for k, _ in unique_indices {
-		queue_create_info := vk.DeviceQueueCreateInfo{}
-
-		queue_create_info.sType = vk.StructureType.DEVICE_QUEUE_CREATE_INFO
-		queue_create_info.queueFamilyIndex = u32(indices.data[.Graphics])
-		queue_create_info.queueCount = 1
-		queue_create_info.pQueuePriorities = &queue_priority
-
+	for queue_family_index in unique_indices {
+		queue_create_info := vk.DeviceQueueCreateInfo {
+			sType            = .DEVICE_QUEUE_CREATE_INFO,
+			queueFamilyIndex = u32(queue_family_index),
+			queueCount       = 1,
+			pQueuePriorities = &queue_priority,
+		}
 		append(&queue_create_infos, queue_create_info)
 	}
 
 	device_features := vk.PhysicalDeviceFeatures{}
-
-	create_info := vk.DeviceCreateInfo{}
-	create_info.sType = vk.StructureType.DEVICE_CREATE_INFO
-	create_info.enabledExtensionCount = u32(len(DEVICE_EXTENSIONS))
-	create_info.ppEnabledExtensionNames = raw_data(
-		util.dynamic_array_of_strings_to_cstrings(DEVICE_EXTENSIONS),
-	)
-	create_info.pQueueCreateInfos = raw_data(queue_create_infos)
-	create_info.queueCreateInfoCount = u32(len(queue_create_infos))
-	create_info.pEnabledFeatures = &device_features
-	create_info.enabledLayerCount = 0
+	create_info := vk.DeviceCreateInfo {
+		sType                   = .DEVICE_CREATE_INFO,
+		enabledExtensionCount   = u32(len(DEVICE_EXTENSIONS)),
+		ppEnabledExtensionNames = raw_data(
+			util.dynamic_array_of_strings_to_cstrings(DEVICE_EXTENSIONS),
+		),
+		pQueueCreateInfos       = raw_data(queue_create_infos),
+		queueCreateInfoCount    = u32(len(queue_create_infos)),
+		pEnabledFeatures        = &device_features,
+		enabledLayerCount       = 0,
+	}
 
 	if _instance.validation_layers_enabled {
 		create_info.enabledLayerCount = u32(len(instance.VALIDATION_LAYERS))
@@ -108,8 +111,6 @@ create_logical_device :: proc(
 				instance.VALIDATION_LAYERS,
 			),
 		)
-	} else {
-		create_info.enabledLayerCount = 0
 	}
 
 	if result := vk.CreateDevice(
@@ -117,7 +118,7 @@ create_logical_device :: proc(
 		&create_info,
 		nil,
 		&device.logical_device,
-	); result != vk.Result.SUCCESS {
+	); result != .SUCCESS {
 		panic("Failed to create logical device")
 	}
 
@@ -126,6 +127,13 @@ create_logical_device :: proc(
 		u32(indices.data[.Graphics]),
 		0,
 		&device.graphics_queue,
+	)
+
+	vk.GetDeviceQueue(
+		device.logical_device,
+		u32(indices.data[.Present]),
+		0,
+		&device.present_queue,
 	)
 
 	vk.load_proc_addresses(device.logical_device)
