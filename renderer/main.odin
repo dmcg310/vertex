@@ -108,14 +108,77 @@ init_renderer :: proc(renderer: ^Renderer) {
 	device.display_device_properties(renderer._device.properties)
 }
 
+/* 
+* We have to define these next two procedures here because of 
+* 	cyclic dependencies in swapchain and framebuffer
+*/
+
+recreate_swap_chain :: proc(renderer: ^Renderer) {
+	width, height: i32 = 0, 0
+	for width == 0 || height == 0 {
+		width, height = window.get_framebuffer_size(renderer._window)
+		window.wait_events()
+	}
+
+	vk.DeviceWaitIdle(renderer._device.logical_device)
+
+	cleanup_swap_chain(renderer)
+
+	renderer._swap_chain = swapchain.create_swap_chain(
+		renderer._device.logical_device,
+		renderer._device.physical_device,
+		renderer._surface.surface,
+		&renderer._window,
+	)
+
+	renderer._pipeline = pipeline.create_graphics_pipeline(
+		renderer._swap_chain,
+		renderer._device.logical_device,
+	)
+
+	renderer._framebuffer_manager = framebuffer.create_framebuffer_manager(
+		renderer._swap_chain,
+		renderer._pipeline._render_pass,
+	)
+	for &image_view in renderer._framebuffer_manager.swap_chain.image_views {
+		framebuffer.push_framebuffer(
+			&renderer._framebuffer_manager,
+			&image_view,
+		)
+	}
+
+	renderer._command_buffers = command.create_command_buffers(
+		renderer._device.logical_device,
+		renderer._command_pool,
+	)
+}
+
+cleanup_swap_chain :: proc(renderer: ^Renderer) {
+	framebuffer.destroy_framebuffer_manager(&renderer._framebuffer_manager)
+	pipeline.destroy_pipeline(
+		renderer._device.logical_device,
+		renderer._pipeline,
+	)
+	swapchain.destroy_swap_chain(
+		renderer._device.logical_device,
+		renderer._swap_chain,
+	)
+}
+
 render :: proc(renderer: ^Renderer) {
-	vk.WaitForFences(
+	result := vk.WaitForFences(
 		renderer._device.logical_device,
 		1,
 		&renderer._sync_objects.in_flight_fences[renderer.current_frame],
 		true,
 		~u64(0),
 	)
+	if result == vk.Result.ERROR_OUT_OF_DATE_KHR {
+		recreate_swap_chain(renderer)
+		return
+	} else if result != vk.Result.SUCCESS && result != vk.Result.TIMEOUT {
+		panic("Failed to wait for fences")
+	}
 
 	vk.ResetFences(
 		renderer._device.logical_device,
@@ -124,7 +187,7 @@ render :: proc(renderer: ^Renderer) {
 	)
 
 	image_index: u32
-	result := vk.AcquireNextImageKHR(
+	result = vk.AcquireNextImageKHR(
 		renderer._device.logical_device,
 		renderer._swap_chain.swap_chain,
 		~u64(0),
@@ -133,8 +196,12 @@ render :: proc(renderer: ^Renderer) {
 		&image_index,
 	)
 
-	if result != .SUCCESS && result != .SUBOPTIMAL_KHR {
-		panic("failed to acquire swap chain image")
+	if result == vk.Result.ERROR_OUT_OF_DATE_KHR {
+		recreate_swap_chain(renderer)
+		return
+	} else if result != vk.Result.SUCCESS &&
+	   result != vk.Result.SUBOPTIMAL_KHR {
+		panic("Failed to acquire swap chain image")
 	}
 
 	vk.ResetCommandBuffer(
@@ -170,7 +237,7 @@ render :: proc(renderer: ^Renderer) {
 		   renderer._sync_objects.in_flight_fences[renderer.current_frame],
 	   ) !=
 	   .SUCCESS {
-		panic("failed to submit draw command buffer")
+		panic("Failed to submit draw command buffer")
 	}
 
 	present_info := vk.PresentInfoKHR {
@@ -183,8 +250,13 @@ render :: proc(renderer: ^Renderer) {
 	}
 
 	result = vk.QueuePresentKHR(renderer._device.present_queue, &present_info)
-	if result != vk.Result.SUCCESS {
-		panic("failed to present swap chain image")
+	if result == vk.Result.ERROR_OUT_OF_DATE_KHR ||
+	   result == vk.Result.SUBOPTIMAL_KHR ||
+	   window.framebuffer_resized {
+		window.framebuffer_resized = false
+		recreate_swap_chain(renderer)
+	} else if result != vk.Result.SUCCESS {
+		panic("Failed to present swap chain image")
 	}
 
 	renderer.current_frame =

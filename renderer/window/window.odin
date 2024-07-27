@@ -10,6 +10,8 @@ Window :: struct {
 	surface_created: bool,
 }
 
+framebuffer_resized: bool
+
 init_window :: proc(width, height: i32, title: string) -> Window {
 	window := Window{}
 
@@ -36,12 +38,22 @@ init_window :: proc(width, height: i32, title: string) -> Window {
 	return window
 }
 
+get_framebuffer_size :: proc(window: Window) -> (i32, i32) {
+	width, height := glfw.GetFramebufferSize(window.handle)
+
+	return width, height
+}
+
 is_window_closed :: proc(window: Window) -> bool {
 	return bool(glfw.WindowShouldClose(window.handle))
 }
 
 poll_window_events :: proc() {
 	glfw.PollEvents()
+}
+
+wait_events :: proc() {
+	glfw.WaitEvents()
 }
 
 create_surface :: proc(
@@ -53,7 +65,6 @@ create_surface :: proc(
 	}
 
 	surface: vk.SurfaceKHR
-
 	if err := glfw.CreateWindowSurface(instance, window.handle, nil, &surface);
 	   err != vk.Result.SUCCESS {
 		fmt.println("Result: ", err)
@@ -93,5 +104,5 @@ framebuffer_size_callback :: proc "c" (
 	window: glfw.WindowHandle,
 	width, height: i32,
 ) {
-	// TODO vulkan specific context
+	framebuffer_resized = true
 }
