@@ -68,7 +68,7 @@ create_graphics_pipeline :: proc(
 	rasterizer := create_rasterizer(
 		vk.PolygonMode.FILL,
 		1.0,
-		vk.CullModeFlags{.BACK},
+		vk.CullModeFlags{},
 		vk.FrontFace.COUNTER_CLOCKWISE,
 		false,
 	)
@@ -267,7 +267,7 @@ create_color_blend_attachment :: proc(
 	enable_blend: b32,
 ) -> vk.PipelineColorBlendAttachmentState {
 	color_blend := vk.PipelineColorBlendAttachmentState{}
-	color_blend.colorWriteMask = vk.ColorComponentFlags{.R | .G | .B | .A}
+	color_blend.colorWriteMask = vk.ColorComponentFlags{.R, .G, .B, .A}
 
 	if enable_blend {
 		color_blend.blendEnable = true
