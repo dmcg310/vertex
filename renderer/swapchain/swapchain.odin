@@ -21,7 +21,7 @@ SwapChain :: struct {
 	images:               []vk.Image,
 	image_views:          []vk.ImageView,
 	device:               vk.Device,
-	queue_family_indices: []u32,
+	queue_family_indices: shared.QueueFamilyIndices,
 }
 
 create_swap_chain :: proc(
@@ -54,16 +54,16 @@ create_swap_chain :: proc(
 	create_info.imageArrayLayers = 1
 	create_info.imageUsage = vk.ImageUsageFlags{.COLOR_ATTACHMENT}
 
-	indices := shared.find_queue_families(physical_device, surface).data
+	indices := shared.find_queue_families(physical_device, surface)
 	queue_family_indices := []u32 {
-		u32(indices[shared.QueueFamily.Graphics]),
-		u32(indices[shared.QueueFamily.Present]),
+		u32(indices.data[shared.QueueFamily.Graphics]),
+		u32(indices.data[shared.QueueFamily.Present]),
 	}
 
-	swap_chain.queue_family_indices = queue_family_indices
+	swap_chain.queue_family_indices = indices
 
-	if indices[shared.QueueFamily.Graphics] !=
-	   indices[shared.QueueFamily.Present] {
+	if indices.data[shared.QueueFamily.Graphics] !=
+	   indices.data[shared.QueueFamily.Present] {
 		create_info.imageSharingMode = vk.SharingMode.CONCURRENT
 		create_info.queueFamilyIndexCount = 2
 		create_info.pQueueFamilyIndices = raw_data(queue_family_indices)

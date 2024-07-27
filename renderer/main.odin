@@ -85,15 +85,14 @@ init_renderer :: proc(renderer: ^Renderer) {
 		renderer._command_pool,
 	)
 
+	fmt.println("Renderer initialized")
+
 	vk.GetPhysicalDeviceProperties(
 		renderer._device.physical_device,
 		&renderer._device.properties,
 	)
 	device.display_device_properties(renderer._device.properties)
-
-	fmt.println("Renderer initialized")
 }
-
 
 shutdown_renderer :: proc(renderer: ^Renderer) {
 	command.destroy_command_pool(
