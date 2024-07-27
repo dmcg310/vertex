@@ -1,14 +1,13 @@
 package synchronization
 
+import "../shared"
 import "core:fmt"
 import vk "vendor:vulkan"
 
-MAX_FRAMES_IN_FLIGHT :: 2
-
 SyncObject :: struct {
-	image_available_semaphores: [MAX_FRAMES_IN_FLIGHT]vk.Semaphore,
-	render_finished_semaphores: [MAX_FRAMES_IN_FLIGHT]vk.Semaphore,
-	in_flight_fences:           [MAX_FRAMES_IN_FLIGHT]vk.Fence,
+	image_available_semaphores: [shared.MAX_FRAMES_IN_FLIGHT]vk.Semaphore,
+	render_finished_semaphores: [shared.MAX_FRAMES_IN_FLIGHT]vk.Semaphore,
+	in_flight_fences:           [shared.MAX_FRAMES_IN_FLIGHT]vk.Fence,
 }
 
 create_sync_objects :: proc(device: vk.Device) -> SyncObject {
@@ -23,7 +22,7 @@ create_sync_objects :: proc(device: vk.Device) -> SyncObject {
 	// Signaled so that the first frame isn't waiting on the last frame - which doesn't exist
 	fence_info.flags = vk.FenceCreateFlags{.SIGNALED}
 
-	for i := 0; i < MAX_FRAMES_IN_FLIGHT; i += 1 {
+	for i := 0; i < shared.MAX_FRAMES_IN_FLIGHT; i += 1 {
 		if vk.CreateSemaphore(
 			   device,
 			   &semaphore_info,
@@ -55,7 +54,7 @@ create_sync_objects :: proc(device: vk.Device) -> SyncObject {
 }
 
 destroy_sync_objects :: proc(sync_object: ^SyncObject, device: vk.Device) {
-	for i := 0; i < MAX_FRAMES_IN_FLIGHT; i += 1 {
+	for i := 0; i < shared.MAX_FRAMES_IN_FLIGHT; i += 1 {
 		vk.DestroySemaphore(
 			device,
 			sync_object.image_available_semaphores[i],

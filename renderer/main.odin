@@ -6,6 +6,7 @@ import "device"
 import "framebuffer"
 import "instance"
 import "pipeline"
+import "shared"
 import "swapchain"
 import "synchronization"
 import vk "vendor:vulkan"
@@ -14,8 +15,6 @@ import "window"
 WIDTH :: 1600
 HEIGHT :: 900
 TITLE :: "Vertex"
-
-MAX_FRAMES_IN_FLIGHT :: 2
 
 Renderer :: struct {
 	_window:              window.Window,
@@ -151,6 +150,8 @@ recreate_swap_chain :: proc(renderer: ^Renderer) {
 		renderer._device.logical_device,
 		renderer._command_pool,
 	)
+
+	fmt.println("Swap chain recreated due to window resize")
 }
 
 cleanup_swap_chain :: proc(renderer: ^Renderer) {
@@ -260,7 +261,7 @@ render :: proc(renderer: ^Renderer) {
 	}
 
 	renderer.current_frame =
-		(renderer.current_frame + 1) % MAX_FRAMES_IN_FLIGHT
+		(renderer.current_frame + 1) % shared.MAX_FRAMES_IN_FLIGHT
 }
 
 shutdown_renderer :: proc(renderer: ^Renderer) {

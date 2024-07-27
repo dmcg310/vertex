@@ -8,14 +8,12 @@ import "../swapchain"
 import "core:fmt"
 import vk "vendor:vulkan"
 
-MAX_FRAMES_IN_FLIGHT :: 2
-
 CommandPool :: struct {
 	pool: vk.CommandPool,
 }
 
 CommandBuffer :: struct {
-	buffers: [MAX_FRAMES_IN_FLIGHT]vk.CommandBuffer,
+	buffers: [shared.MAX_FRAMES_IN_FLIGHT]vk.CommandBuffer,
 }
 
 create_command_pool :: proc(
@@ -57,7 +55,7 @@ create_command_buffers :: proc(
 	alloc_info.sType = vk.StructureType.COMMAND_BUFFER_ALLOCATE_INFO
 	alloc_info.commandPool = pool.pool
 	alloc_info.level = vk.CommandBufferLevel.PRIMARY
-	alloc_info.commandBufferCount = MAX_FRAMES_IN_FLIGHT
+	alloc_info.commandBufferCount = shared.MAX_FRAMES_IN_FLIGHT
 
 	if vk.AllocateCommandBuffers(
 		   device,
