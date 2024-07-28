@@ -21,18 +21,14 @@ init_imgui :: proc(
 	instance: vk.Instance,
 	queue: vk.Queue,
 	queue_family: u32,
-	swapchain_image_count: u32,
+	swap_chain_image_count: u32,
+	swap_chain_format: vk.Format,
 	command_pool: vk.CommandPool,
 ) -> ImGuiState {
 	im.CHECKVERSION()
 	im.CreateContext()
 	io := im.GetIO()
-	io.ConfigFlags += {
-		.NavEnableKeyboard,
-		.NavEnableGamepad,
-		.DockingEnable,
-		.ViewportsEnable,
-	}
+	io.ConfigFlags += {.NavEnableKeyboard, .NavEnableGamepad, .DockingEnable}
 
 	im.StyleColorsDark()
 
@@ -60,18 +56,19 @@ init_imgui :: proc(
 	descriptor_pool := create_descriptor_pool(device)
 
 	init_info := imgui_impl_vulkan.InitInfo {
-		Instance        = instance,
-		PhysicalDevice  = physical_device,
-		Device          = device,
-		QueueFamily     = queue_family,
-		Queue           = queue,
-		PipelineCache   = {},
-		DescriptorPool  = descriptor_pool,
-		MinImageCount   = swapchain_image_count,
-		ImageCount      = swapchain_image_count,
-		MSAASamples     = vk.SampleCountFlags{._1},
-		Allocator       = nil,
-		CheckVkResultFn = check_vk_result,
+		Instance              = instance,
+		PhysicalDevice        = physical_device,
+		Device                = device,
+		QueueFamily           = queue_family,
+		Queue                 = queue,
+		PipelineCache         = {},
+		DescriptorPool        = descriptor_pool,
+		MinImageCount         = swap_chain_image_count,
+		ImageCount            = swap_chain_image_count,
+		MSAASamples           = vk.SampleCountFlags{._1},
+		Allocator             = nil,
+		CheckVkResultFn       = check_vk_result,
+		ColorAttachmentFormat = swap_chain_format,
 	}
 	imgui_impl_vulkan.Init(&init_info, render_pass)
 

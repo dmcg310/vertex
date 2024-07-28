@@ -109,6 +109,7 @@ init_renderer :: proc(renderer: ^Renderer) {
 		renderer._device.graphics_queue,
 		renderer._device.graphics_family_index,
 		u32(len(renderer._swap_chain.images)),
+		renderer._swap_chain.format.format,
 		renderer._command_pool.pool,
 	)
 
