@@ -28,6 +28,7 @@ init_imgui :: proc(
 	im.CHECKVERSION()
 	im.CreateContext()
 	io := im.GetIO()
+	io.IniFilename = nil
 	io.ConfigFlags += {.NavEnableKeyboard, .NavEnableGamepad, .DockingEnable}
 
 	im.StyleColorsDark()
