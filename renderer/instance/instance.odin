@@ -24,9 +24,7 @@ when ODIN_OS == .Windows {
 	) -> b32 {
 		context = runtime.default_context()
 		message := util.from_cstring(callback_data.pMessage)
-		log_level := get_log_level(severity)
-
-		log.log(message, log_level)
+		log.log_vulkan(message, severity)
 
 		return false
 	}
@@ -39,9 +37,7 @@ when ODIN_OS == .Windows {
 	) -> b32 {
 		context = runtime.default_context()
 		message := util.from_cstring(callback_data.pMessage)
-		log_level := log.get_log_level(severity)
-
-		log.log(message, log_level)
+		log.log_vulkan(message, severity)
 
 		return false
 	}

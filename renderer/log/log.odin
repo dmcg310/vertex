@@ -12,6 +12,14 @@ Logger :: struct {
 
 @(private)
 logger: Logger
+@(private)
+vulkan_logger: Logger
+@(private)
+vulkan_log_count: int
+@(private)
+vulkan_error_count: int
+@(private)
+vulkan_warning_count: int
 
 init_logger :: proc() -> (err: os.Errno) {
 	logs_dir := "logs"
@@ -46,6 +54,29 @@ init_logger :: proc() -> (err: os.Errno) {
 	return
 }
 
+init_vulkan_logger :: proc() -> (err: os.Errno) {
+	logs_dir := "logs"
+	if os.make_directory(logs_dir) != 0 {
+		if !os.exists(logs_dir) {
+			return os.EPERM
+		}
+	}
+
+	vulkan_log_file := filepath.join({logs_dir, "vulkan_validation.log"})
+	vulkan_logger.file, err = os.open(
+		vulkan_log_file,
+		os.O_WRONLY | os.O_CREATE | os.O_TRUNC,
+		0o644,
+	)
+	if err != 0 {
+		fmt.eprintln("Failed to open Vulkan log file:", err)
+		return
+	}
+
+	log("Vulkan validation logging initialized")
+	return
+}
+
 log :: proc(message: string, level: string = "INFO") {
 	timestamp := time.now()
 	formatted_message := fmt.tprintf(
@@ -62,6 +93,30 @@ log :: proc(message: string, level: string = "INFO") {
 		if level == "ERROR" || level == "CRITICAL" {
 			os.write_string(logger.file, formatted_message)
 		}
+	}
+}
+
+log_vulkan :: proc(
+	message: string,
+	severity: vk.DebugUtilsMessageSeverityFlagsEXT,
+) {
+	timestamp := time.now()
+	severity_str := get_log_level(severity)
+	formatted_message := fmt.tprintf(
+		"[%v] [%s] %s\n",
+		timestamp,
+		severity_str,
+		message,
+	)
+
+	os.write_string(vulkan_logger.file, formatted_message)
+
+	vulkan_log_count += 1
+
+	if .ERROR in severity {
+		vulkan_error_count += 1
+	} else if .WARNING in severity {
+		vulkan_warning_count += 1
 	}
 }
 
@@ -98,6 +153,26 @@ close_logger :: proc() {
 	}
 }
 
+close_vulkan_logger :: proc() {
+	if vulkan_logger.file != 0 {
+		summary := fmt.tprintf(
+			"Vulkan validation logging terminated. Total logs: %d, Errors: %d, Warnings: %d",
+			vulkan_log_count,
+			vulkan_error_count,
+			vulkan_warning_count,
+		)
+		log(summary)
+
+		os.write_string(
+			vulkan_logger.file,
+			fmt.tprintf("\n--- Summary ---\n%s\n", summary),
+		)
+
+		os.close(vulkan_logger.file)
+	}
+}
+
+@(private)
 get_log_level :: proc(
 	severity: vk.DebugUtilsMessageSeverityFlagsEXT,
 ) -> string {

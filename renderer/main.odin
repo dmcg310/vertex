@@ -42,6 +42,13 @@ main :: proc() {
 	}
 	defer log.close_logger()
 
+	err = log.init_vulkan_logger()
+	if err != 0 {
+		log.log_fatal("Failed to initialize Vulkan logger")
+	}
+	defer log.close_vulkan_logger()
+
+
 	log.log("Application started")
 
 	renderer := Renderer {
