@@ -6,9 +6,11 @@ import "core:path/filepath"
 import "core:time"
 import vk "vendor:vulkan"
 
-Logger :: struct {
-	file: os.Handle,
-}
+COLOR_RESET :: "\x1b[0m"
+COLOR_RED :: "\x1b[31m"
+COLOR_GREY :: "\x1b[90m"
+COLOR_YELLOW :: "\x1b[33m"
+COLOR_BLUE :: "\x1b[34m"
 
 @(private)
 logger: Logger
@@ -20,6 +22,10 @@ vulkan_log_count: int
 vulkan_error_count: int
 @(private)
 vulkan_warning_count: int
+
+Logger :: struct {
+	file: os.Handle,
+}
 
 init_logger :: proc() -> (err: os.Errno) {
 	logs_dir := "logs"
@@ -86,12 +92,32 @@ log :: proc(message: string, level: string = "INFO") {
 		message,
 	)
 
+	os.write_string(logger.file, formatted_message)
+
 	when ODIN_DEBUG {
-		os.write_string(logger.file, formatted_message)
-		fmt.print(formatted_message)
+		color := COLOR_RESET
+		switch level {
+		case "INFO":
+			color = COLOR_GREY
+		case "WARNING":
+			color = COLOR_YELLOW
+		case "ERROR", "CRITICAL":
+			color = COLOR_RED
+		case "DEBUG":
+			color = COLOR_BLUE
+		}
+
+		colored_message := fmt.tprintf(
+			"%s%s%s",
+			color,
+			formatted_message,
+			COLOR_RESET,
+		)
+
+		fmt.print(colored_message)
 	} else {
 		if level == "ERROR" || level == "CRITICAL" {
-			os.write_string(logger.file, formatted_message)
+			fmt.eprint(formatted_message)
 		}
 	}
 }
@@ -132,7 +158,14 @@ log_fatal :: proc(message: string, loc := #caller_location) {
 	)
 
 	os.write_string(logger.file, formatted_message)
-	fmt.eprint(formatted_message)
+
+	colored_message := fmt.tprintf(
+		"%s%s%s",
+		COLOR_RED,
+		formatted_message,
+		COLOR_RESET,
+	)
+	fmt.eprint(colored_message)
 
 	os.exit(1)
 }
