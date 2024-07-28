@@ -1,8 +1,8 @@
 package framebuffer
 
+import "../log"
 import "../render_pass"
 import "../swapchain"
-import "core:fmt"
 import vk "vendor:vulkan"
 
 Framebuffer :: struct {
@@ -31,7 +31,7 @@ create_framebuffer_manager :: proc(
 	framebuffer_manager.swap_chain = swap_chain
 	framebuffer_manager._render_pass = _render_pass
 
-	fmt.println("Framebuffer manager created")
+	log.log("Framebuffer manager created")
 
 	return framebuffer_manager
 }
@@ -47,7 +47,7 @@ destroy_framebuffer_manager :: proc(manager: ^FramebufferManager) {
 
 	delete(manager.framebuffers)
 
-	fmt.println("Framebuffer manager destroyed")
+	log.log("Framebuffer manager destroyed")
 }
 
 push_framebuffer :: proc(
@@ -68,14 +68,13 @@ push_framebuffer :: proc(
 	framebuffer_info.height = framebuffer.height
 	framebuffer_info.layers = 1
 
-	if vk.CreateFramebuffer(
-		   manager.swap_chain.device,
-		   &framebuffer_info,
-		   nil,
-		   &framebuffer.framebuffer,
-	   ) !=
-	   vk.Result.SUCCESS {
-		panic("failed to create framebuffer!")
+	if result := vk.CreateFramebuffer(
+		manager.swap_chain.device,
+		&framebuffer_info,
+		nil,
+		&framebuffer.framebuffer,
+	); result != .SUCCESS {
+		log.log_fatal_with_vk_result("Failed to create framebuffer", result)
 	}
 
 	append(&manager.framebuffers, framebuffer)

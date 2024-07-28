@@ -1,5 +1,6 @@
 package util
 
+import "../log"
 import "core:fmt"
 import "core:os"
 import "core:strings"
@@ -31,7 +32,7 @@ dynamic_array_of_strings_to_cstrings :: proc(
 read_file :: proc(path: string) -> ([]byte, bool) {
 	data, ok := os.read_entire_file(path)
 	if !ok {
-		fmt.eprintfln("Failed to read file: %s", path)
+		log.log(fmt.aprintf("Failed to read file %s", path), "WARNING")
 		return nil, false
 	}
 

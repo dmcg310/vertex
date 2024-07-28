@@ -1,9 +1,9 @@
 package instance
 
+import "../log"
 import "../util"
 import "../window"
 import "base:runtime"
-import "core:fmt"
 import "vendor:glfw"
 import vk "vendor:vulkan"
 
@@ -15,6 +15,38 @@ Instance :: struct {
 
 VALIDATION_LAYERS := [dynamic]string{"VK_LAYER_KHRONOS_validation"}
 
+when ODIN_OS == .Windows {
+	vulkan_debug_callback :: proc "stdcall" (
+		severity: vk.DebugUtilsMessageSeverityFlagsEXT,
+		type: vk.DebugUtilsMessageTypeFlagsEXT,
+		callback_data: ^vk.DebugUtilsMessengerCallbackDataEXT,
+		user_data: rawptr,
+	) -> b32 {
+		context = runtime.default_context()
+		message := util.from_cstring(callback_data.pMessage)
+		log_level := get_log_level(severity)
+
+		log.log(message, log_level)
+
+		return false
+	}
+} else {
+	vulkan_debug_callback :: proc "cdecl" (
+		severity: vk.DebugUtilsMessageSeverityFlagsEXT,
+		type: vk.DebugUtilsMessageTypeFlagsEXT,
+		callback_data: ^vk.DebugUtilsMessengerCallbackDataEXT,
+		user_data: rawptr,
+	) -> b32 {
+		context = runtime.default_context()
+		message := util.from_cstring(callback_data.pMessage)
+		log_level := log.get_log_level(severity)
+
+		log.log(message, log_level)
+
+		return false
+	}
+}
+
 create_instance :: proc(enable_validation_layers: bool) -> Instance {
 	vk.load_proc_addresses((rawptr)(glfw.GetInstanceProcAddress))
 
@@ -22,7 +54,7 @@ create_instance :: proc(enable_validation_layers: bool) -> Instance {
 	instance.validation_layers_enabled = enable_validation_layers
 
 	if enable_validation_layers && !check_validation_layer_support() {
-		panic("Validation layers requested, but not available")
+		log.log_fatal("Validation layers requested, but not available")
 	}
 
 	glfw_extensions := glfw.GetRequiredInstanceExtensions()
@@ -62,8 +94,11 @@ create_instance :: proc(enable_validation_layers: bool) -> Instance {
 	}
 
 	if result := vk.CreateInstance(&create_info, nil, &instance.instance);
-	   result != vk.Result.SUCCESS {
-		panic("Failed to create Vulkan instance:")
+	   result != .SUCCESS {
+		log.log_fatal_with_vk_result(
+			"Failed to create Vulkan instance",
+			result,
+		)
 	}
 
 	vk.load_proc_addresses(instance.instance)
@@ -72,7 +107,7 @@ create_instance :: proc(enable_validation_layers: bool) -> Instance {
 		setup_debug_messenger(&instance)
 	}
 
-	fmt.println("Vulkan instance created")
+	log.log("Vulkan instance created")
 
 	return instance
 }
@@ -90,7 +125,7 @@ destroy_instance :: proc(instance: Instance) {
 		vk.DestroyInstance(instance.instance, nil)
 	}
 
-	fmt.println("Vulkan instance destroyed")
+	log.log("Vulkan instance destroyed")
 }
 
 @(private)
@@ -141,36 +176,6 @@ get_required_extensions :: proc(instance: Instance) -> []cstring {
 	return new_extensions
 }
 
-when ODIN_OS == .Windows {
-	vulkan_debug_callback :: proc "stdcall" (
-		severity: vk.DebugUtilsMessageSeverityFlagsEXT,
-		type: vk.DebugUtilsMessageTypeFlagsEXT,
-		callback_data: ^vk.DebugUtilsMessengerCallbackDataEXT,
-		user_data: rawptr,
-	) -> b32 {
-		context = runtime.default_context()
-		fmt.printfln(
-			"Validation layer: %s",
-			util.from_cstring(callback_data.pMessage),
-		)
-		return false
-	}
-} else {
-	vulkan_debug_callback :: proc "cdecl" (
-		severity: vk.DebugUtilsMessageSeverityFlagsEXT,
-		type: vk.DebugUtilsMessageTypeFlagsEXT,
-		callback_data: ^vk.DebugUtilsMessengerCallbackDataEXT,
-		user_data: rawptr,
-	) -> b32 {
-		context = runtime.default_context()
-		fmt.printfln(
-			"Validation layer: %s",
-			util.from_cstring(callback_data.pMessage),
-		)
-		return false
-	}
-}
-
 @(private)
 setup_debug_messenger :: proc(instance: ^Instance) {
 	if !instance.validation_layers_enabled {
@@ -185,8 +190,11 @@ setup_debug_messenger :: proc(instance: ^Instance) {
 		&create_info,
 		nil,
 		&instance.debug_messenger,
-	); result != vk.Result.SUCCESS {
-		panic("Failed to set up debug messenger")
+	); result != .SUCCESS {
+		log.log_fatal_with_vk_result(
+			"Failed to set up debug messenger",
+			result,
+		)
 	}
 }
 
@@ -212,7 +220,7 @@ create_debug_utils_messenger_ext :: proc(
 	if func != nil {
 		return func(instance, create_info, allocator, messenger)
 	} else {
-		return vk.Result.ERROR_EXTENSION_NOT_PRESENT
+		return .ERROR_EXTENSION_NOT_PRESENT
 	}
 }
 

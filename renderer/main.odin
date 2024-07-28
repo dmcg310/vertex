@@ -60,7 +60,7 @@ main :: proc() {
 
 	shutdown_renderer(&renderer)
 
-	fmt.println("Application ended")
+	log.log("Application ended")
 }
 
 init_renderer :: proc(renderer: ^Renderer) {
@@ -125,13 +125,13 @@ init_renderer :: proc(renderer: ^Renderer) {
 		renderer._command_pool.pool,
 	)
 
-	fmt.println("Renderer initialized")
+	log.log("Renderer initialized")
 
 	vk.GetPhysicalDeviceProperties(
 		renderer._device.physical_device,
 		&renderer._device.properties,
 	)
-	device.display_device_properties(renderer._device.properties)
+	log.log(device.device_properties_to_string(renderer._device.properties))
 }
 
 render :: proc(renderer: ^Renderer) {
@@ -147,7 +147,7 @@ render :: proc(renderer: ^Renderer) {
 		recreate_swap_chain(renderer)
 		return
 	} else if result != .SUCCESS && result != .TIMEOUT {
-		panic("Failed to wait for fences")
+		log.log_fatal("Failed to wait for fences")
 	}
 
 	image_index: u32
@@ -164,7 +164,7 @@ render :: proc(renderer: ^Renderer) {
 		recreate_swap_chain(renderer)
 		return
 	} else if result != .SUCCESS && result != .SUBOPTIMAL_KHR {
-		panic("Failed to acquire swap chain image")
+		log.log_fatal("Failed to acquire swap chain image")
 	}
 
 	imgui_manager.new_imgui_frame()
@@ -191,7 +191,7 @@ render :: proc(renderer: ^Renderer) {
 		   &begin_info,
 	   ) !=
 	   .SUCCESS {
-		panic("Failed to begin recording command buffer")
+		log.log_fatal("Failed to begin recording command buffer")
 	}
 
 	render_pass_info := vk.RenderPassBeginInfo {
@@ -269,7 +269,7 @@ render :: proc(renderer: ^Renderer) {
 		   renderer._command_buffers.buffers[renderer.current_frame],
 	   ) !=
 	   .SUCCESS {
-		panic("Failed to record command buffer")
+		log.log_fatal("Failed to record command buffer")
 	}
 
 	submit_info := vk.SubmitInfo {
@@ -292,7 +292,7 @@ render :: proc(renderer: ^Renderer) {
 		   renderer._sync_objects.in_flight_fences[renderer.current_frame],
 	   ) !=
 	   .SUCCESS {
-		panic("Failed to submit draw command buffer")
+		log.log_fatal("Failed to submit draw command buffer")
 	}
 
 	present_info := vk.PresentInfoKHR {
@@ -311,7 +311,7 @@ render :: proc(renderer: ^Renderer) {
 		window.framebuffer_resized = false
 		recreate_swap_chain(renderer)
 	} else if result != .SUCCESS {
-		panic("Failed to present swap chain image")
+		log.log_fatal("Failed to present swap chain image")
 	}
 
 	imgui_manager.update_imgui_platform_windows()
@@ -351,7 +351,7 @@ shutdown_renderer :: proc(renderer: ^Renderer) {
 	instance.destroy_instance(renderer._instance)
 	window.destroy_window(renderer._window)
 
-	fmt.println("Renderer shutdown")
+	log.log("Renderer shutdown")
 }
 
 /* 
@@ -398,7 +398,7 @@ recreate_swap_chain :: proc(renderer: ^Renderer) {
 		renderer._command_pool,
 	)
 
-	fmt.println("Swap chain recreated due to window resize")
+	log.log("Swap chain recreated due to window resize")
 }
 
 cleanup_swap_chain :: proc(renderer: ^Renderer) {

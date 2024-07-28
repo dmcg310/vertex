@@ -1,7 +1,7 @@
 package window
 
+import "../log"
 import "../util"
-import "core:fmt"
 import "vendor:glfw"
 import vk "vendor:vulkan"
 
@@ -16,7 +16,7 @@ init_window :: proc(width, height: i32, title: string) -> Window {
 	window := Window{}
 
 	if !glfw.Init() {
-		panic("Failed to initialize GLFW")
+		log.log_fatal("Failed to initialize GLFW")
 	}
 
 	glfw.WindowHint(glfw.CLIENT_API, glfw.NO_API)
@@ -28,21 +28,19 @@ init_window :: proc(width, height: i32, title: string) -> Window {
 		nil,
 		nil,
 	); window.handle == nil {
-		panic("Failed to create GLFW window")
+		log.log_fatal("Failed to create GLFW window")
 	}
 
 	glfw.SetFramebufferSizeCallback(window.handle, framebuffer_size_callback)
 	glfw.SetKeyCallback(window.handle, key_callback)
 
-	fmt.println("Window created")
+	log.log("Window created")
 
 	return window
 }
 
 get_framebuffer_size :: proc(window: Window) -> (i32, i32) {
-	width, height := glfw.GetFramebufferSize(window.handle)
-
-	return width, height
+	return glfw.GetFramebufferSize(window.handle)
 }
 
 is_window_closed :: proc(window: Window) -> bool {
@@ -62,17 +60,16 @@ create_surface :: proc(
 	window: ^Window,
 ) -> vk.SurfaceKHR {
 	if window.surface_created {
-		panic("Surface for this window already created")
+		log.log_fatal("Surface for this window already created")
 	}
 
 	surface: vk.SurfaceKHR
 	if err := glfw.CreateWindowSurface(instance, window.handle, nil, &surface);
-	   err != vk.Result.SUCCESS {
-		fmt.println("Result: ", err)
-		panic("Failed to create window surface")
+	   err != .SUCCESS {
+		log.log_fatal_with_vk_result("Failed to create window surface", err)
 	}
 
-	fmt.println("Vulkan surface created")
+	log.log("Vulkan surface created")
 
 	window.surface_created = true
 
@@ -87,7 +84,7 @@ destroy_surface :: proc(
 	if window.surface_created {
 		vk.DestroySurfaceKHR(instance, surface, nil)
 
-		fmt.println("Vulkan surface destroyed")
+		log.log("Vulkan surface destroyed")
 
 		window.surface_created = false
 	}
@@ -97,7 +94,7 @@ destroy_window :: proc(window: Window) {
 	glfw.DestroyWindow(window.handle)
 	glfw.Terminate()
 
-	fmt.println("Window destroyed")
+	log.log("Window destroyed")
 }
 
 @(private)

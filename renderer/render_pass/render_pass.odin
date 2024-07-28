@@ -1,7 +1,7 @@
 package render_pass
 
+import "../log"
 import "../swapchain"
-import "core:fmt"
 import vk "vendor:vulkan"
 
 RenderPass :: struct {
@@ -35,17 +35,19 @@ create_render_pass :: proc(
 	render_pass_info.dependencyCount = 1
 	render_pass_info.pDependencies = &dependency
 
-	if vk.CreateRenderPass(
-		   device,
-		   &render_pass_info,
-		   nil,
-		   &render_pass.render_pass,
-	   ) !=
-	   vk.Result.SUCCESS {
-		fmt.println("Failed to create Vulkan render pass")
+	if result := vk.CreateRenderPass(
+		device,
+		&render_pass_info,
+		nil,
+		&render_pass.render_pass,
+	); result != .SUCCESS {
+		log.log_fatal_with_vk_result(
+			"Failed to create Vulkan render pass",
+			result,
+		)
 	}
 
-	fmt.println("Vulkan render pass created")
+	log.log("Vulkan render pass created")
 
 	return render_pass
 }
@@ -53,7 +55,7 @@ create_render_pass :: proc(
 destroy_render_pass :: proc(device: vk.Device, render_pass: RenderPass) {
 	vk.DestroyRenderPass(device, render_pass.render_pass, nil)
 
-	fmt.println("Vulkan render pass destroyed")
+	log.log("Vulkan render pass destroyed")
 }
 
 @(private)

@@ -1,11 +1,11 @@
 package command
 
 import "../framebuffer"
+import "../log"
 import "../pipeline"
 import "../render_pass"
 import "../shared"
 import "../swapchain"
-import "core:fmt"
 import vk "vendor:vulkan"
 
 CommandPool :: struct {
@@ -29,12 +29,16 @@ create_command_pool :: proc(
 		swap_chain.queue_family_indices.data[.Graphics],
 	)
 
-	if vk.CreateCommandPool(device, &pool_info, nil, &command_pool.pool) !=
-	   vk.Result.SUCCESS {
-		panic("failed to create command pool")
+	if result := vk.CreateCommandPool(
+		device,
+		&pool_info,
+		nil,
+		&command_pool.pool,
+	); result != .SUCCESS {
+		log.log_fatal_with_vk_result("Failed to create command pool", result)
 	}
 
-	fmt.println("Vulkan command pool created")
+	log.log("Vulkan command pool created")
 
 	return command_pool
 }
@@ -42,7 +46,7 @@ create_command_pool :: proc(
 destroy_command_pool :: proc(pool: ^CommandPool, device: vk.Device) {
 	vk.DestroyCommandPool(device, pool.pool, nil)
 
-	fmt.println("Vulkan command pool destroyed")
+	log.log("Vulkan command pool destroyed")
 }
 
 create_command_buffers :: proc(
@@ -57,16 +61,18 @@ create_command_buffers :: proc(
 	alloc_info.level = vk.CommandBufferLevel.PRIMARY
 	alloc_info.commandBufferCount = shared.MAX_FRAMES_IN_FLIGHT
 
-	if vk.AllocateCommandBuffers(
-		   device,
-		   &alloc_info,
-		   &command_buffers.buffers[0],
-	   ) !=
-	   vk.Result.SUCCESS {
-		panic("failed to allocate command buffers")
+	if result := vk.AllocateCommandBuffers(
+		device,
+		&alloc_info,
+		&command_buffers.buffers[0],
+	); result != .SUCCESS {
+		log.log_fatal_with_vk_result(
+			"Failed to allocate command buffers",
+			result,
+		)
 	}
 
-	fmt.println("Vulkan command buffers allocated")
+	log.log("Vulkan command buffers allocated")
 
 	return command_buffers
 }
@@ -81,9 +87,12 @@ record_command_buffer :: proc(
 	begin_info := vk.CommandBufferBeginInfo{}
 	begin_info.sType = vk.StructureType.COMMAND_BUFFER_BEGIN_INFO
 
-	if vk.BeginCommandBuffer(command_buffer, &begin_info) !=
-	   vk.Result.SUCCESS {
-		panic("failed to begin recording command buffer")
+	if result := vk.BeginCommandBuffer(command_buffer, &begin_info);
+	   result != .SUCCESS {
+		log.log_fatal_with_vk_result(
+			"Failed to begin recording command buffer",
+			result,
+		)
 	}
 
 	clear_color := vk.ClearValue {
@@ -129,7 +138,7 @@ record_command_buffer :: proc(
 
 	vk.CmdEndRenderPass(command_buffer)
 
-	if vk.EndCommandBuffer(command_buffer) != .SUCCESS {
-		panic("Failed to record command buffer")
+	if result := vk.EndCommandBuffer(command_buffer); result != .SUCCESS {
+		log.log_fatal_with_vk_result("Failed to record command buffer", result)
 	}
 }

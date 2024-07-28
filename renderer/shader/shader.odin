@@ -1,5 +1,6 @@
 package shader
 
+import "../log"
 import "../util"
 import "core:fmt"
 import vk "vendor:vulkan"
@@ -19,12 +20,12 @@ read_shaders :: proc(paths: []string) -> (Shaders, bool) {
 		}
 
 		if i == 0 {
-			fmt.printfln("%s loaded", path)
 			shaders.vertex_shader = data
 		} else {
-			fmt.printfln("%s loaded", path)
 			shaders.fragment_shader = data
 		}
+
+		log.log(fmt.aprintf("%s loaded", path))
 	}
 
 	return shaders, true
@@ -40,9 +41,13 @@ create_shader_module :: proc(
 	create_info.pCode = transmute(^u32)raw_data(code)
 
 	shader_module: vk.ShaderModule
-	if (vk.CreateShaderModule(device, &create_info, nil, &shader_module) !=
-		   vk.Result.SUCCESS) {
-		panic("Failed to create shader module")
+	if result := vk.CreateShaderModule(
+		device,
+		&create_info,
+		nil,
+		&shader_module,
+	); result != .SUCCESS {
+		log.log_fatal_with_vk_result("Failed to create shader module", result)
 	}
 
 	return shader_module

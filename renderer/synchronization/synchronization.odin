@@ -1,7 +1,7 @@
 package synchronization
 
+import "../log"
 import "../shared"
-import "core:fmt"
 import vk "vendor:vulkan"
 
 SyncObject :: struct {
@@ -23,32 +23,49 @@ create_sync_objects :: proc(device: vk.Device) -> SyncObject {
 	fence_info.flags = vk.FenceCreateFlags{.SIGNALED}
 
 	for i := 0; i < shared.MAX_FRAMES_IN_FLIGHT; i += 1 {
-		if vk.CreateSemaphore(
-			   device,
-			   &semaphore_info,
-			   nil,
-			   &sync_object.image_available_semaphores[i],
-		   ) !=
-			   vk.Result.SUCCESS ||
-		   vk.CreateSemaphore(
-			   device,
-			   &semaphore_info,
-			   nil,
-			   &sync_object.render_finished_semaphores[i],
-		   ) !=
-			   vk.Result.SUCCESS ||
-		   vk.CreateFence(
-			   device,
-			   &fence_info,
-			   nil,
-			   &sync_object.in_flight_fences[i],
-		   ) !=
-			   vk.Result.SUCCESS {
-			panic("Failed to create synchronization objects for a frame")
+		result: vk.Result
+
+		result = vk.CreateSemaphore(
+			device,
+			&semaphore_info,
+			nil,
+			&sync_object.image_available_semaphores[i],
+		)
+		if result != .SUCCESS {
+			log.log_fatal_with_vk_result(
+				"Failed to create image available semaphore",
+				result,
+			)
+		}
+
+		result = vk.CreateSemaphore(
+			device,
+			&semaphore_info,
+			nil,
+			&sync_object.render_finished_semaphores[i],
+		)
+		if result != .SUCCESS {
+			log.log_fatal_with_vk_result(
+				"Failed to create render finished semaphore",
+				result,
+			)
+		}
+
+		result = vk.CreateFence(
+			device,
+			&fence_info,
+			nil,
+			&sync_object.in_flight_fences[i],
+		)
+		if result != .SUCCESS {
+			log.log_fatal_with_vk_result(
+				"Failed to create in-flight fence",
+				result,
+			)
 		}
 	}
 
-	fmt.println("Vulkan synchronization objects created")
+	log.log("Vulkan synchronization objects created")
 
 	return sync_object
 }
@@ -70,5 +87,5 @@ destroy_sync_objects :: proc(sync_object: ^SyncObject, device: vk.Device) {
 		vk.DestroyFence(device, sync_object.in_flight_fences[i], nil)
 	}
 
-	fmt.println("Vulkan synchronization objects destroyed")
+	log.log("Vulkan synchronization objects destroyed")
 }

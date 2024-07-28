@@ -4,6 +4,7 @@ import "core:fmt"
 import "core:os"
 import "core:path/filepath"
 import "core:time"
+import vk "vendor:vulkan"
 
 Logger :: struct {
 	file: os.Handle,
@@ -81,9 +82,32 @@ log_fatal :: proc(message: string, loc := #caller_location) {
 	os.exit(1)
 }
 
+log_fatal_with_vk_result :: proc(
+	message: string,
+	result: vk.Result,
+	loc := #caller_location,
+) {
+	formatted_message := fmt.tprintf("%s. Vulkan result: %v", message, result)
+	log_fatal(formatted_message, loc)
+}
+
 close_logger :: proc() {
 	if logger.file != 0 {
 		log("Logging terminated")
 		os.close(logger.file)
+	}
+}
+
+get_log_level :: proc(
+	severity: vk.DebugUtilsMessageSeverityFlagsEXT,
+) -> string {
+	if .ERROR in severity {
+		return "ERROR"
+	} else if .WARNING in severity {
+		return "WARNING"
+	} else if .INFO in severity {
+		return "INFO"
+	} else {
+		return "DEBUG"
 	}
 }

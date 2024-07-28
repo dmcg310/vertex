@@ -1,9 +1,9 @@
 package swapchain
 
+import "../log"
 import "../shared"
 import "../util"
 import "../window"
-import "core:fmt"
 import "core:math"
 import "vendor:glfw"
 import vk "vendor:vulkan"
@@ -84,8 +84,8 @@ create_swap_chain :: proc(
 		&create_info,
 		nil,
 		&swap_chain.swap_chain,
-	); result != vk.Result.SUCCESS {
-		panic("Failed to create swap chain")
+	); result != .SUCCESS {
+		log.log_fatal_with_vk_result("Failed to create swap chain", result)
 	}
 
 	swap_chain.format = surface_format
@@ -104,7 +104,7 @@ create_swap_chain :: proc(
 	swap_chain.image_views = []vk.ImageView{}
 	swap_chain.device = device
 
-	fmt.println("Vulkan swap chain created")
+	log.log("Vulkan swap chain created")
 
 	create_image_views(&swap_chain, device)
 
@@ -118,7 +118,7 @@ destroy_swap_chain :: proc(device: vk.Device, swap_chain: SwapChain) {
 		vk.DestroyImageView(device, image_view, nil)
 	}
 
-	fmt.println("Vulkan swap chain destroyed")
+	log.log("Vulkan swap chain destroyed")
 }
 
 query_swap_chain_support :: proc(
@@ -199,8 +199,11 @@ create_image_views :: proc(swap_chain: ^SwapChain, device: vk.Device) {
 			&create_info,
 			nil,
 			&swap_chain.image_views[i],
-		); result != vk.Result.SUCCESS {
-			panic("Failed to create image views")
+		); result != .SUCCESS {
+			log.log_fatal_with_vk_result(
+				"Failed to create image views",
+				result,
+			)
 		}
 	}
 }

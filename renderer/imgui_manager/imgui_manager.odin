@@ -3,8 +3,8 @@ package imgui_manager
 import im "../../external/odin-imgui"
 import "../../external/odin-imgui/imgui_impl_glfw"
 import "../../external/odin-imgui/imgui_impl_vulkan"
+import "../log"
 import "base:runtime"
-import "core:fmt"
 import "core:os"
 import "vendor:glfw"
 import vk "vendor:vulkan"
@@ -79,7 +79,7 @@ init_imgui :: proc(
 	end_single_time_commands(device, command_pool, &command_buffer, queue)
 	imgui_impl_vulkan.DestroyFontsTexture()
 
-	fmt.println("ImGui context initialized")
+	log.log("ImGui context initialized")
 
 	return ImGuiState{descriptor_pool = descriptor_pool}
 }
@@ -108,7 +108,7 @@ destroy_imgui :: proc(device: vk.Device, imgui_state: ImGuiState) {
 	imgui_impl_glfw.Shutdown()
 	im.DestroyContext()
 
-	fmt.println("ImGui context destroyed")
+	log.log("ImGui context destroyed")
 }
 
 @(private)
@@ -182,9 +182,16 @@ create_descriptor_pool :: proc(device: vk.Device) -> vk.DescriptorPool {
 	}
 
 	descriptor_pool: vk.DescriptorPool
-	if vk.CreateDescriptorPool(device, &pool_info, nil, &descriptor_pool) !=
-	   .SUCCESS {
-		panic("Failed to create descriptor pool for ImGui")
+	if result := vk.CreateDescriptorPool(
+		device,
+		&pool_info,
+		nil,
+		&descriptor_pool,
+	); result != .SUCCESS {
+		log.log_fatal_with_vk_result(
+			"Failed to create descriptor pool for ImGui",
+			result,
+		)
 	}
 
 	return descriptor_pool
@@ -194,7 +201,6 @@ create_descriptor_pool :: proc(device: vk.Device) -> vk.DescriptorPool {
 check_vk_result :: proc "c" (result: vk.Result) {
 	if result != .SUCCESS {
 		context = runtime.default_context()
-		fmt.eprintf("Imgui Vulkan error: %v\n", result)
-		os.exit(1)
+		log.log_fatal_with_vk_result("Imgui vulkan error", result)
 	}
 }

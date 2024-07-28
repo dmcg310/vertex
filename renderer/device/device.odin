@@ -1,12 +1,14 @@
 package device
 
 import "../instance"
+import "../log"
 import "../shared"
 import "../swapchain"
 import "../util"
 import "../window"
 import "core:fmt"
 import "core:math"
+import "core:strings"
 import "vendor:glfw"
 import vk "vendor:vulkan"
 
@@ -41,7 +43,7 @@ pick_physical_device :: proc(
 	vk.EnumeratePhysicalDevices(instance, &device_count, nil)
 
 	if device_count == 0 {
-		panic("Failed to find GPUs with Vulkan support")
+		log.log_fatal("Failed to find GPUs with Vulkan support")
 	}
 
 	devices := make([]vk.PhysicalDevice, device_count)
@@ -57,7 +59,7 @@ pick_physical_device :: proc(
 	}
 
 	if highest_score == 0 || device.physical_device == nil {
-		panic("Failed to find a suitable GPU")
+		log.log_fatal("Failed to find a suitable GPU")
 	}
 }
 
@@ -122,7 +124,7 @@ create_logical_device :: proc(
 		nil,
 		&device.logical_device,
 	); result != .SUCCESS {
-		panic("Failed to create logical device")
+		log.log_fatal("Failed to create logical device")
 	}
 
 	vk.GetDeviceQueue(
@@ -141,7 +143,7 @@ create_logical_device :: proc(
 
 	vk.load_proc_addresses(device.logical_device)
 
-	fmt.println("Vulkan logical device created")
+	log.log("Vulkan logical device created")
 }
 
 create_surface :: proc(
@@ -167,7 +169,7 @@ destroy_logical_device :: proc(device: Device) {
 		vk.DestroyDevice(device.logical_device, nil)
 	}
 
-	fmt.println("Vulkan logical device destroyed")
+	log.log("Vulkan logical device destroyed")
 }
 
 @(private)
@@ -247,13 +249,16 @@ check_device_extension_support :: proc(device: vk.PhysicalDevice) -> bool {
 	return true
 }
 
-display_device_properties :: proc(properties: vk.PhysicalDeviceProperties) {
-	fmt.printf("GPU Name: %s -> ", properties.deviceName)
-	fmt.printf("Driver Version: %d -> ", properties.driverVersion)
-	fmt.printf("Vendor ID: %d -> ", properties.vendorID)
-	fmt.printf("Device ID: %d -> ", properties.deviceID)
-	fmt.printf(
-		"Device Type: %s\n",
+device_properties_to_string :: proc(
+	properties: vk.PhysicalDeviceProperties,
+) -> string {
+	temp := properties.deviceName
+	device_name := strings.clone_from_bytes(temp[:])
+	device_name = strings.trim_right(device_name, "\x00")
+
+	return fmt.aprintf(
+		"Using: %s. Device Type: %s",
+		device_name,
 		device_type_to_string(properties.deviceType),
 	)
 }

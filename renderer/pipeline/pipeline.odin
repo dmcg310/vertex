@@ -1,9 +1,9 @@
 package pipeline
 
+import "../log"
 import "../render_pass"
 import "../shader"
 import "../swapchain"
-import "core:fmt"
 import vk "vendor:vulkan"
 
 VERT_PATH :: "shaders/vert.spv"
@@ -90,22 +90,24 @@ create_graphics_pipeline :: proc(
 		pipeline,
 	)
 
-	if vk.CreateGraphicsPipelines(
-		   device,
-		   0,
-		   1,
-		   &pipeline_info,
-		   nil,
-		   &pipeline.pipeline,
-	   ) !=
-	   .SUCCESS {
-		panic("Failed to create graphics pipeline")
+	if result := vk.CreateGraphicsPipelines(
+		device,
+		0,
+		1,
+		&pipeline_info,
+		nil,
+		&pipeline.pipeline,
+	); result != .SUCCESS {
+		log.log_fatal_with_vk_result(
+			"Failed to create graphics pipeline",
+			result,
+		)
 	}
 
 	vk.DestroyShaderModule(device, vert_shader_module, nil)
 	vk.DestroyShaderModule(device, frag_shader_module, nil)
 
-	fmt.println("Vulkan graphics pipeline created")
+	log.log("Vulkan graphics pipeline created")
 
 	return pipeline
 }
@@ -115,7 +117,7 @@ destroy_pipeline :: proc(device: vk.Device, pipeline: GraphicsPipeline) {
 	vk.DestroyPipeline(device, pipeline.pipeline, nil)
 	vk.DestroyPipelineLayout(device, pipeline.pipeline_layout, nil)
 
-	fmt.println("Vulkan graphics pipeline destroyed")
+	log.log("Vulkan graphics pipeline destroyed")
 }
 
 @(private)
@@ -154,9 +156,16 @@ create_pipeline_layout :: proc(device: vk.Device) -> vk.PipelineLayout {
 	layout_info.sType = vk.StructureType.PIPELINE_LAYOUT_CREATE_INFO
 
 	pipeline_layout := vk.PipelineLayout{}
-	if vk.CreatePipelineLayout(device, &layout_info, nil, &pipeline_layout) !=
-	   vk.Result.SUCCESS {
-		panic("Failed to create pipeline layout")
+	if result := vk.CreatePipelineLayout(
+		device,
+		&layout_info,
+		nil,
+		&pipeline_layout,
+	); result != vk.Result.SUCCESS {
+		log.log_fatal_with_vk_result(
+			"Failed to create pipeline layout",
+			result,
+		)
 	}
 
 	return pipeline_layout
