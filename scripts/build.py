@@ -73,26 +73,35 @@ def build_imgui(force=False):
         os.chdir("../..")
 
 
-def build_odin_project():
-    print_script("Building Odin project...")
-
+def build_odin_project(debug=True):
+    print_script(f"Building Odin project in {
+                 'debug' if debug else 'release'} mode...")
     os.makedirs("bin", exist_ok=True)
 
     if sys.platform.startswith("win"):
-        output_file = "bin\\renderer.exe"
+        output_file = "bin\\renderer_debug.exe" if debug else "bin\\renderer_release.exe"
     else:
-        output_file = "bin/renderer"
+        output_file = "bin/renderer_debug" if debug else "bin/renderer_release"
 
-    build_cmd = f"odin build renderer -out:{output_file}"
+    build_cmd = ["odin", "build", "renderer", f"-out:{output_file}"]
 
-    result = subprocess.run(build_cmd, shell=True, check=True)
+    if debug:
+        build_cmd.extend(["-debug"])
+    else:
+        build_cmd.extend(
+            ["-o:speed", "-no-bounds-check", "-disable-assert"])
+
+    print(f"{Fore.GREEN}{Style.BRIGHT}--- Odin Timings ---{Style.RESET_ALL}")
+    build_cmd.extend(["-show-timings"])
+
+    result = subprocess.run(build_cmd, check=True)
     if result.returncode != 0:
         print_error(f"Odin build failed with exit code {result.returncode}")
         sys.exit(1)
 
+    print(f"{Fore.GREEN}{Style.BRIGHT}--- Odin Timings End ---{Style.RESET_ALL}")
     print_script(
         f"Odin build completed successfully. Binary saved as {output_file}")
-
     return output_file
 
 
@@ -112,18 +121,25 @@ def run_binary(binary_path):
 
 def main():
     os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
     print_script("Build process started")
 
-    init_submodules()
+    if "--debug" in sys.argv:
+        debug_mode = True
+    elif "--release" in sys.argv:
+        debug_mode = False
+    else:
+        print_error("Please specify either --debug or --release")
+        sys.exit(1)
 
+    init_submodules()
     if "--rebuild-imgui" in sys.argv:
         build_imgui(force=True)
     else:
         build_imgui()
 
     compile_shaders()
-    binary_path = build_odin_project()
+
+    binary_path = build_odin_project(debug=debug_mode)
     run_binary(binary_path)
 
     print_script("Build process and execution completed")

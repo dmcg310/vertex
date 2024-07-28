@@ -55,16 +55,28 @@ pip install colorama ply
 3. Build ImGui (required at least once):
 
 ```sh
-python3 scripts/build.py --rebuild-imgui
+python3 scripts/build.py --rebuild-imgui --debug
+```
+
+Or
+
+```sh
+python3 scripts/build.py --rebuild-imgui --release
 ```
 
 4. For subsequent builds, run the build script without the ImGui flag:
 
 ```sh
-python3 scripts/build.py
+python3 scripts/build.py --debug
 ```
 
-This script will initialize submodules, compile the shaders, build the Odin project, and run the resulting binary.
+Or
+
+```sh
+python3 scripts/build.py --release
+```
+
+This script will initialize submodules, compile the shaders, build the Odin project in the specified mode (debug or release), and run the resulting binary.
 
 ## References
 
