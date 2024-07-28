@@ -46,8 +46,9 @@ when ODIN_OS == .Windows {
 create_instance :: proc(enable_validation_layers: bool) -> Instance {
 	vk.load_proc_addresses((rawptr)(glfw.GetInstanceProcAddress))
 
-	instance := Instance{}
-	instance.validation_layers_enabled = enable_validation_layers
+	instance := Instance {
+		validation_layers_enabled = enable_validation_layers,
+	}
 
 	if enable_validation_layers && !check_validation_layer_support() {
 		log.log_fatal("Validation layers requested, but not available")
@@ -55,26 +56,29 @@ create_instance :: proc(enable_validation_layers: bool) -> Instance {
 
 	glfw_extensions := glfw.GetRequiredInstanceExtensions()
 
-	app_info := vk.ApplicationInfo{}
-	app_info.sType = vk.StructureType.APPLICATION_INFO
-	app_info.pNext = nil
-	app_info.pApplicationName = util.to_cstring("Vertex")
-	app_info.applicationVersion = vk.MAKE_VERSION(1, 0, 0)
-	app_info.pEngineName = util.to_cstring("No Engine")
-	app_info.engineVersion = vk.MAKE_VERSION(1, 0, 0)
-	app_info.apiVersion = vk.API_VERSION_1_3
-
-	create_info := vk.InstanceCreateInfo{}
-	create_info.sType = vk.StructureType.INSTANCE_CREATE_INFO
-	create_info.pNext = nil
-	create_info.flags = nil
-	create_info.pApplicationInfo = &app_info
+	app_info := vk.ApplicationInfo {
+		sType              = .APPLICATION_INFO,
+		pNext              = nil,
+		pApplicationName   = util.to_cstring("Vertex"),
+		applicationVersion = vk.MAKE_VERSION(1, 0, 0),
+		pEngineName        = util.to_cstring("No Engine"),
+		engineVersion      = vk.MAKE_VERSION(1, 0, 0),
+		apiVersion         = vk.API_VERSION_1_3,
+	}
 
 	extensions := get_required_extensions(instance)
-	create_info.enabledExtensionCount = u32(len(extensions))
-	create_info.ppEnabledExtensionNames = raw_data(extensions)
+
+	create_info := vk.InstanceCreateInfo {
+		sType                   = .INSTANCE_CREATE_INFO,
+		pNext                   = nil,
+		flags                   = nil,
+		pApplicationInfo        = &app_info,
+		enabledExtensionCount   = u32(len(extensions)),
+		ppEnabledExtensionNames = raw_data(extensions),
+	}
 
 	debug_create_info := vk.DebugUtilsMessengerCreateInfoEXT{}
+
 	if enable_validation_layers {
 		create_info.enabledLayerCount = u32(len(VALIDATION_LAYERS))
 		create_info.ppEnabledLayerNames = raw_data(
@@ -224,15 +228,9 @@ create_debug_utils_messenger_ext :: proc(
 populate_debug_messenger_create_info :: proc(
 	create_info: ^vk.DebugUtilsMessengerCreateInfoEXT,
 ) {
-	create_info.sType = vk.StructureType.DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT
-	create_info.messageSeverity = {
-		vk.DebugUtilsMessageSeverityFlagsEXT.WARNING,
-		vk.DebugUtilsMessageSeverityFlagsEXT.ERROR,
-	}
-	create_info.messageType = {
-		vk.DebugUtilsMessageTypeFlagsEXT.VALIDATION,
-		vk.DebugUtilsMessageTypeFlagsEXT.PERFORMANCE,
-	}
+	create_info.sType = .DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT
+	create_info.messageSeverity = {.WARNING, .ERROR}
+	create_info.messageType = {.VALIDATION, .PERFORMANCE}
 	create_info.pfnUserCallback = vulkan_debug_callback
 	create_info.pUserData = nil
 }

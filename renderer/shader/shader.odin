@@ -35,10 +35,11 @@ create_shader_module :: proc(
 	code: []byte,
 	device: vk.Device,
 ) -> vk.ShaderModule {
-	create_info := vk.ShaderModuleCreateInfo{}
-	create_info.sType = vk.StructureType.SHADER_MODULE_CREATE_INFO
-	create_info.codeSize = len(code)
-	create_info.pCode = transmute(^u32)raw_data(code)
+	create_info := vk.ShaderModuleCreateInfo {
+		sType    = .SHADER_MODULE_CREATE_INFO,
+		codeSize = len(code),
+		pCode    = transmute(^u32)raw_data(code),
+	}
 
 	shader_module: vk.ShaderModule
 	if result := vk.CreateShaderModule(
@@ -57,12 +58,10 @@ create_shader_stage :: proc(
 	stage: vk.ShaderStageFlags,
 	module: vk.ShaderModule,
 ) -> vk.PipelineShaderStageCreateInfo {
-	stage_create_info := vk.PipelineShaderStageCreateInfo{}
-	stage_create_info.sType =
-		vk.StructureType.PIPELINE_SHADER_STAGE_CREATE_INFO
-	stage_create_info.stage = stage
-	stage_create_info.module = module
-	stage_create_info.pName = "main"
-
-	return stage_create_info
+	return vk.PipelineShaderStageCreateInfo {
+		sType = .PIPELINE_SHADER_STAGE_CREATE_INFO,
+		stage = stage,
+		module = module,
+		pName = "main",
+	}
 }

@@ -22,14 +22,15 @@ create_framebuffer_manager :: proc(
 	swap_chain: swapchain.SwapChain,
 	_render_pass: render_pass.RenderPass,
 ) -> FramebufferManager {
-	framebuffer_manager := FramebufferManager{}
-	framebuffer_manager.framebuffers = make(
-		[dynamic]Framebuffer,
-		0,
-		len(swap_chain.image_views),
-	)
-	framebuffer_manager.swap_chain = swap_chain
-	framebuffer_manager._render_pass = _render_pass
+	framebuffer_manager := FramebufferManager {
+		framebuffers = make(
+			[dynamic]Framebuffer,
+			0,
+			len(swap_chain.image_views),
+		),
+		swap_chain   = swap_chain,
+		_render_pass = _render_pass,
+	}
 
 	log.log("Framebuffer manager created")
 
@@ -54,19 +55,21 @@ push_framebuffer :: proc(
 	manager: ^FramebufferManager,
 	attachment: ^vk.ImageView,
 ) {
-	framebuffer := Framebuffer{}
-	framebuffer.id = uint(len(manager.framebuffers))
-	framebuffer.width = manager.swap_chain.extent_2d.width
-	framebuffer.height = manager.swap_chain.extent_2d.height
+	framebuffer := Framebuffer {
+		id     = uint(len(manager.framebuffers)),
+		width  = manager.swap_chain.extent_2d.width,
+		height = manager.swap_chain.extent_2d.height,
+	}
 
-	framebuffer_info := vk.FramebufferCreateInfo{}
-	framebuffer_info.sType = vk.StructureType.FRAMEBUFFER_CREATE_INFO
-	framebuffer_info.renderPass = manager._render_pass.render_pass
-	framebuffer_info.attachmentCount = 1
-	framebuffer_info.pAttachments = attachment
-	framebuffer_info.width = framebuffer.width
-	framebuffer_info.height = framebuffer.height
-	framebuffer_info.layers = 1
+	framebuffer_info := vk.FramebufferCreateInfo {
+		sType           = .FRAMEBUFFER_CREATE_INFO,
+		renderPass      = manager._render_pass.render_pass,
+		attachmentCount = 1,
+		pAttachments    = attachment,
+		width           = framebuffer.width,
+		height          = framebuffer.height,
+		layers          = 1,
+	}
 
 	if result := vk.CreateFramebuffer(
 		manager.swap_chain.device,

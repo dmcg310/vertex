@@ -13,14 +13,14 @@ SyncObject :: struct {
 create_sync_objects :: proc(device: vk.Device) -> SyncObject {
 	sync_object := SyncObject{}
 
-	semaphore_info := vk.SemaphoreCreateInfo{}
-	semaphore_info.sType = vk.StructureType.SEMAPHORE_CREATE_INFO
+	semaphore_info := vk.SemaphoreCreateInfo {
+		sType = .SEMAPHORE_CREATE_INFO,
+	}
 
-	fence_info := vk.FenceCreateInfo{}
-	fence_info.sType = vk.StructureType.FENCE_CREATE_INFO
-
-	// Signaled so that the first frame isn't waiting on the last frame - which doesn't exist
-	fence_info.flags = vk.FenceCreateFlags{.SIGNALED}
+	fence_info := vk.FenceCreateInfo {
+		sType = .FENCE_CREATE_INFO,
+		flags = {.SIGNALED},
+	}
 
 	for i := 0; i < shared.MAX_FRAMES_IN_FLIGHT; i += 1 {
 		result: vk.Result

@@ -93,6 +93,7 @@ create_logical_device :: proc(
 			queueCount       = 1,
 			pQueuePriorities = &queue_priority,
 		}
+
 		append(&queue_create_infos, queue_create_info)
 	}
 
@@ -150,8 +151,9 @@ create_surface :: proc(
 	_instance: instance.Instance,
 	_window: ^window.Window,
 ) -> Surface {
-	surface := Surface{}
-	surface.surface = window.create_surface(_instance.instance, _window)
+	surface := Surface {
+		surface = window.create_surface(_instance.instance, _window),
+	}
 
 	return surface
 }
@@ -184,7 +186,7 @@ is_device_suitable :: proc(
 	vk.GetPhysicalDeviceFeatures(device, &device_features)
 
 	score := 0
-	if device_properties.deviceType == vk.PhysicalDeviceType.DISCRETE_GPU {
+	if device_properties.deviceType == .DISCRETE_GPU {
 		score += 1000
 	}
 
@@ -266,15 +268,15 @@ device_properties_to_string :: proc(
 @(private)
 device_type_to_string :: proc(deviceType: vk.PhysicalDeviceType) -> string {
 	switch deviceType {
-	case vk.PhysicalDeviceType.INTEGRATED_GPU:
+	case .INTEGRATED_GPU:
 		return "Integrated GPU"
-	case vk.PhysicalDeviceType.DISCRETE_GPU:
+	case .DISCRETE_GPU:
 		return "Discrete GPU"
-	case vk.PhysicalDeviceType.VIRTUAL_GPU:
+	case .VIRTUAL_GPU:
 		return "Virtual GPU"
-	case vk.PhysicalDeviceType.CPU:
+	case .CPU:
 		return "CPU"
-	case vk.PhysicalDeviceType.OTHER:
+	case .OTHER:
 		return "Other"
 	}
 

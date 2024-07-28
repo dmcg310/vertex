@@ -44,15 +44,16 @@ create_swap_chain :: proc(
 		image_count = swap_chain_support.capabilities.maxImageCount
 	}
 
-	create_info := vk.SwapchainCreateInfoKHR{}
-	create_info.sType = vk.StructureType.SWAPCHAIN_CREATE_INFO_KHR
-	create_info.surface = surface
-	create_info.minImageCount = image_count
-	create_info.imageFormat = surface_format.format
-	create_info.imageColorSpace = surface_format.colorSpace
-	create_info.imageExtent = extent_2d
-	create_info.imageArrayLayers = 1
-	create_info.imageUsage = vk.ImageUsageFlags{.COLOR_ATTACHMENT}
+	create_info := vk.SwapchainCreateInfoKHR {
+		sType            = .SWAPCHAIN_CREATE_INFO_KHR,
+		surface          = surface,
+		minImageCount    = image_count,
+		imageFormat      = surface_format.format,
+		imageColorSpace  = surface_format.colorSpace,
+		imageExtent      = extent_2d,
+		imageArrayLayers = 1,
+		imageUsage       = {.COLOR_ATTACHMENT},
+	}
 
 	indices := shared.find_queue_families(physical_device, surface)
 	queue_family_indices := []u32 {
@@ -64,17 +65,17 @@ create_swap_chain :: proc(
 
 	if indices.data[shared.QueueFamily.Graphics] !=
 	   indices.data[shared.QueueFamily.Present] {
-		create_info.imageSharingMode = vk.SharingMode.CONCURRENT
+		create_info.imageSharingMode = .CONCURRENT
 		create_info.queueFamilyIndexCount = 2
 		create_info.pQueueFamilyIndices = raw_data(queue_family_indices)
 	} else {
-		create_info.imageSharingMode = vk.SharingMode.EXCLUSIVE
+		create_info.imageSharingMode = .EXCLUSIVE
 		create_info.queueFamilyIndexCount = 0
 		create_info.pQueueFamilyIndices = nil
 	}
 
 	create_info.preTransform = swap_chain_support.capabilities.currentTransform
-	create_info.compositeAlpha = vk.CompositeAlphaFlagsKHR{.OPAQUE}
+	create_info.compositeAlpha = {.OPAQUE}
 	create_info.presentMode = present_mode
 	create_info.clipped = true
 	create_info.oldSwapchain = vk.SwapchainKHR(0)
@@ -177,22 +178,25 @@ create_image_views :: proc(swap_chain: ^SwapChain, device: vk.Device) {
 	swap_chain.image_views = make([]vk.ImageView, len(swap_chain.images))
 
 	for image, i in swap_chain.images {
-		create_info := vk.ImageViewCreateInfo{}
-		create_info.sType = vk.StructureType.IMAGE_VIEW_CREATE_INFO
-		create_info.image = swap_chain.images[i]
-		create_info.viewType = vk.ImageViewType.D2
-		create_info.format = swap_chain.format.format
-
-		create_info.components.r = vk.ComponentSwizzle.IDENTITY
-		create_info.components.g = vk.ComponentSwizzle.IDENTITY
-		create_info.components.b = vk.ComponentSwizzle.IDENTITY
-		create_info.components.a = vk.ComponentSwizzle.IDENTITY
-
-		create_info.subresourceRange.aspectMask = vk.ImageAspectFlags{.COLOR}
-		create_info.subresourceRange.baseMipLevel = 0
-		create_info.subresourceRange.levelCount = 1
-		create_info.subresourceRange.baseArrayLayer = 0
-		create_info.subresourceRange.layerCount = 1
+		create_info := vk.ImageViewCreateInfo {
+			sType = .IMAGE_VIEW_CREATE_INFO,
+			image = swap_chain.images[i],
+			viewType = .D2,
+			format = swap_chain.format.format,
+			components = {
+				r = .IDENTITY,
+				g = .IDENTITY,
+				b = .IDENTITY,
+				a = .IDENTITY,
+			},
+			subresourceRange = {
+				aspectMask = {.COLOR},
+				baseMipLevel = 0,
+				levelCount = 1,
+				baseArrayLayer = 0,
+				layerCount = 1,
+			},
+		}
 
 		if result := vk.CreateImageView(
 			device,
@@ -213,8 +217,8 @@ choose_swap_surface_format :: proc(
 	available_formats: []vk.SurfaceFormatKHR,
 ) -> vk.SurfaceFormatKHR {
 	for available_format in available_formats {
-		if available_format.format == vk.Format.B8G8R8A8_SRGB &&
-		   available_format.colorSpace == vk.ColorSpaceKHR.SRGB_NONLINEAR {
+		if available_format.format == .B8G8R8A8_SRGB &&
+		   available_format.colorSpace == .SRGB_NONLINEAR {
 			return available_format
 		}
 	}
@@ -227,12 +231,12 @@ choose_swap_present_mode :: proc(
 	available_present_modes: []vk.PresentModeKHR,
 ) -> vk.PresentModeKHR {
 	for available_present_mode in available_present_modes {
-		if available_present_mode == vk.PresentModeKHR.MAILBOX {
+		if available_present_mode == .MAILBOX {
 			return available_present_mode
 		}
 	}
 
-	return vk.PresentModeKHR.FIFO
+	return .FIFO
 }
 
 @(private)
