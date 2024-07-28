@@ -141,20 +141,34 @@ get_required_extensions :: proc(instance: Instance) -> []cstring {
 	return new_extensions
 }
 
-vulkan_debug_callback :: proc "stdcall" (
-	severity: vk.DebugUtilsMessageSeverityFlagsEXT,
-	type: vk.DebugUtilsMessageTypeFlagsEXT,
-	callback_data: ^vk.DebugUtilsMessengerCallbackDataEXT,
-	user_data: rawptr,
-) -> b32 {
-	context = runtime.default_context()
-
-	fmt.printfln(
-		"Validation layer: %s",
-		util.from_cstring(callback_data.pMessage),
-	)
-
-	return false
+when ODIN_OS == .Windows {
+	vulkan_debug_callback :: proc "stdcall" (
+		severity: vk.DebugUtilsMessageSeverityFlagsEXT,
+		type: vk.DebugUtilsMessageTypeFlagsEXT,
+		callback_data: ^vk.DebugUtilsMessengerCallbackDataEXT,
+		user_data: rawptr,
+	) -> b32 {
+		context = runtime.default_context()
+		fmt.printfln(
+			"Validation layer: %s",
+			util.from_cstring(callback_data.pMessage),
+		)
+		return false
+	}
+} else {
+	vulkan_debug_callback :: proc "cdecl" (
+		severity: vk.DebugUtilsMessageSeverityFlagsEXT,
+		type: vk.DebugUtilsMessageTypeFlagsEXT,
+		callback_data: ^vk.DebugUtilsMessengerCallbackDataEXT,
+		user_data: rawptr,
+	) -> b32 {
+		context = runtime.default_context()
+		fmt.printfln(
+			"Validation layer: %s",
+			util.from_cstring(callback_data.pMessage),
+		)
+		return false
+	}
 }
 
 @(private)
