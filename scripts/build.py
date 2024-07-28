@@ -21,9 +21,17 @@ def compile_shaders():
     else:
         compile_script = "./scripts/compile.sh"
 
+        try:
+            subprocess.run(["chmod", "+x", compile_script], check=True)
+        except subprocess.CalledProcessError as e:
+            print_error(f"Failed to set executable permissions for {
+                        compile_script} with exit code {e.returncode}")
+            sys.exit(1)
+
     result = subprocess.run(compile_script, shell=True, check=True)
     if result.returncode != 0:
-        print_error(f"Shader compilation failed with exit code {result.returncode}")
+        print_error(f"Shader compilation failed with exit code {
+                    result.returncode}")
         sys.exit(1)
     print_script("Shader compilation completed successfully")
 
@@ -31,16 +39,19 @@ def compile_shaders():
 def init_submodules():
     print_script("Initializing submodules...")
 
-    result = subprocess.run(["git", "submodule", "update", "--init", "--recursive"], check=True)
+    result = subprocess.run(
+        ["git", "submodule", "update", "--init", "--recursive"], check=True)
     if result.returncode != 0:
-        print_error(f"Submodule initialization failed with exit code {result.returncode}")
+        print_error(f"Submodule initialization failed with exit code {
+                    result.returncode}")
         sys.exit(1)
 
     print_script("Submodule initialization completed successfully")
 
 
 def build_imgui(force=False):
-    imgui_lib_path = os.path.join("external", "odin-imgui", "imgui_windows_x64.lib")
+    imgui_lib_path = os.path.join(
+        "external", "odin-imgui", "imgui_windows_x64.lib")
     if not force and os.path.exists(imgui_lib_path):
         print_script("ImGui already built, skipping...")
         return
@@ -51,7 +62,8 @@ def build_imgui(force=False):
 
     try:
         with open(os.devnull, 'w') as devnull:
-            subprocess.run(["python", "build.py"], check=True, stdout=devnull, stderr=subprocess.STDOUT)
+            subprocess.run(["python", "build.py"], check=True,
+                           stdout=devnull, stderr=subprocess.STDOUT)
 
         print_script("ImGui build completed successfully")
     except subprocess.CalledProcessError as e:
@@ -78,7 +90,8 @@ def build_odin_project():
         print_error(f"Odin build failed with exit code {result.returncode}")
         sys.exit(1)
 
-    print_script(f"Odin build completed successfully. Binary saved as {output_file}")
+    print_script(
+        f"Odin build completed successfully. Binary saved as {output_file}")
 
     return output_file
 
