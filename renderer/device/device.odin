@@ -15,12 +15,13 @@ Surface :: struct {
 }
 
 Device :: struct {
-	physical_device: vk.PhysicalDevice,
-	logical_device:  vk.Device,
-	graphics_queue:  vk.Queue,
-	properties:      vk.PhysicalDeviceProperties,
-	surface:         Surface,
-	present_queue:   vk.Queue,
+	physical_device:       vk.PhysicalDevice,
+	logical_device:        vk.Device,
+	graphics_queue:        vk.Queue,
+	graphics_family_index: u32,
+	properties:            vk.PhysicalDeviceProperties,
+	surface:               Surface,
+	present_queue:         vk.Queue,
 }
 
 DEVICE_EXTENSIONS := [dynamic]string{"VK_KHR_swapchain"}
@@ -73,6 +74,8 @@ create_logical_device :: proc(
 	unique_indices := make(map[int]struct {})
 	unique_indices[indices.data[.Graphics]] = {}
 	unique_indices[indices.data[.Present]] = {}
+
+	device.graphics_family_index = u32(indices.data[.Graphics])
 
 	queue_priority: f32 = 1.0
 	queue_create_infos := make(
