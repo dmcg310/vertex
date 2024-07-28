@@ -89,3 +89,19 @@ destroy_sync_objects :: proc(sync_object: ^SyncObject, device: vk.Device) {
 
 	log.log("Vulkan synchronization objects destroyed")
 }
+
+wait_for_sync :: proc(device: vk.Device, fence: ^vk.Fence) -> bool {
+	result := vk.WaitForFences(device, 1, fence, true, ~u64(0))
+
+	if result == .ERROR_OUT_OF_DATE_KHR {
+		return false
+	} else if result != .SUCCESS && result != .TIMEOUT {
+		log.log_fatal("Failed to wait for fences")
+	}
+
+	return true
+}
+
+reset_fence :: proc(device: vk.Device, fence: ^vk.Fence) {
+	vk.ResetFences(device, 1, fence)
+}

@@ -1,6 +1,7 @@
 package command
 
 import "../framebuffer"
+import "../imgui_manager"
 import "../log"
 import "../pipeline"
 import "../render_pass"
@@ -82,10 +83,12 @@ record_command_buffer :: proc(
 	framebuffer_manager: framebuffer.FramebufferManager,
 	swap_chain: swapchain.SwapChain,
 	graphics_pipeline: pipeline.GraphicsPipeline,
+	flags: vk.CommandBufferUsageFlags,
 	image_idx: u32,
-) {
+) -> bool {
 	begin_info := vk.CommandBufferBeginInfo {
 		sType = .COMMAND_BUFFER_BEGIN_INFO,
+		flags = flags,
 	}
 
 	if result := vk.BeginCommandBuffer(command_buffer, &begin_info);
@@ -94,6 +97,8 @@ record_command_buffer :: proc(
 			"Failed to begin recording command buffer",
 			result,
 		)
+
+		return false
 	}
 
 	clear_color := vk.ClearValue {
@@ -130,9 +135,49 @@ record_command_buffer :: proc(
 
 	vk.CmdSetScissor(command_buffer, 0, 1, &scissor)
 	vk.CmdDraw(command_buffer, 3, 1, 0, 0)
+
+	imgui_manager.render_imgui(command_buffer)
+
 	vk.CmdEndRenderPass(command_buffer)
 
 	if result := vk.EndCommandBuffer(command_buffer); result != .SUCCESS {
 		log.log_fatal_with_vk_result("Failed to record command buffer", result)
+
+		return false
 	}
+
+	return true
+}
+
+submit_command_buffer :: proc(
+	device: vk.Device,
+	queue: vk.Queue,
+	buffer: ^vk.CommandBuffer,
+	wait_semaphore: ^vk.Semaphore,
+	signal_semaphore: ^vk.Semaphore,
+	fence: vk.Fence,
+) -> bool {
+	submit_info := vk.SubmitInfo {
+		sType                = .SUBMIT_INFO,
+		waitSemaphoreCount   = 1,
+		pWaitSemaphores      = wait_semaphore,
+		pWaitDstStageMask    = &vk.PipelineStageFlags {
+			.COLOR_ATTACHMENT_OUTPUT,
+		},
+		commandBufferCount   = 1,
+		pCommandBuffers      = buffer,
+		signalSemaphoreCount = 1,
+		pSignalSemaphores    = signal_semaphore,
+	}
+
+	if vk.QueueSubmit(queue, 1, &submit_info, fence) != .SUCCESS {
+		log.log_fatal("Failed to submit draw command buffer")
+		return false
+	}
+
+	return true
+}
+
+reset_command_buffer :: proc(buffer: vk.CommandBuffer) {
+	vk.ResetCommandBuffer(buffer, {})
 }

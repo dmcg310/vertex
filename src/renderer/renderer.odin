@@ -29,6 +29,20 @@ Renderer :: struct {
 	current_frame:        u32,
 }
 
+RenderContext :: struct {
+	image_index:         u32,
+	logical_device:      vk.Device,
+	graphics_queue:      vk.Queue,
+	present_queue:       vk.Queue,
+	swap_chain:          swapchain.SwapChain,
+	buffer:              vk.CommandBuffer,
+	fence:               vk.Fence,
+	available_semaphore: vk.Semaphore,
+	finished_semaphore:  vk.Semaphore,
+	framebuffer_manager: framebuffer.FramebufferManager,
+	pipeline:            pipeline.GraphicsPipeline,
+}
+
 init_renderer :: proc(renderer: ^Renderer, width, height: i32, title: string) {
 	renderer.current_frame = 0
 	renderer._window = window.init_window(width, height, title)
@@ -102,187 +116,57 @@ init_renderer :: proc(renderer: ^Renderer, width, height: i32, title: string) {
 }
 
 render :: proc(renderer: ^Renderer) {
-	result := vk.WaitForFences(
-		renderer._device.logical_device,
-		1,
-		&renderer._sync_objects.in_flight_fences[renderer.current_frame],
-		true,
-		~u64(0),
-	)
+	ctx := get_render_context(renderer)
 
-	if result == .ERROR_OUT_OF_DATE_KHR {
+	if !synchronization.wait_for_sync(ctx.logical_device, &ctx.fence) {
 		recreate_swap_chain(renderer)
-		return
-	} else if result != .SUCCESS && result != .TIMEOUT {
-		log.log_fatal("Failed to wait for fences")
 	}
 
-	image_index: u32
-	result = vk.AcquireNextImageKHR(
-		renderer._device.logical_device,
-		renderer._swap_chain.swap_chain,
-		~u64(0),
-		renderer._sync_objects.image_available_semaphores[renderer.current_frame],
-		0,
-		&image_index,
-	)
-
-	if result == .ERROR_OUT_OF_DATE_KHR {
+	if image_index, ok := swapchain.get_next_image(
+		ctx.logical_device,
+		ctx.swap_chain.swap_chain,
+		ctx.available_semaphore,
+	); !ok {
 		recreate_swap_chain(renderer)
-		return
-	} else if result != .SUCCESS && result != .SUBOPTIMAL_KHR {
-		log.log_fatal("Failed to acquire swap chain image")
 	}
 
 	imgui_manager.new_imgui_frame()
 
 	im.ShowDemoWindow()
 
-	vk.ResetFences(
-		renderer._device.logical_device,
-		1,
-		&renderer._sync_objects.in_flight_fences[renderer.current_frame],
-	)
+	synchronization.reset_fence(ctx.logical_device, &ctx.fence)
+	command.reset_command_buffer(ctx.buffer)
 
-	vk.ResetCommandBuffer(
-		renderer._command_buffers.buffers[renderer.current_frame],
-		{},
-	)
-
-	begin_info := vk.CommandBufferBeginInfo {
-		sType = .COMMAND_BUFFER_BEGIN_INFO,
-		flags = {.ONE_TIME_SUBMIT},
+	if !command.record_command_buffer(
+		ctx.buffer,
+		ctx.framebuffer_manager,
+		ctx.swap_chain,
+		ctx.pipeline,
+		{.ONE_TIME_SUBMIT},
+		ctx.image_index,
+	) {
+		return
 	}
 
-	if vk.BeginCommandBuffer(
-		   renderer._command_buffers.buffers[renderer.current_frame],
-		   &begin_info,
-	   ) !=
-	   .SUCCESS {
-		log.log_fatal("Failed to begin recording command buffer")
+	if !command.submit_command_buffer(
+		ctx.logical_device,
+		ctx.graphics_queue,
+		&ctx.buffer,
+		&ctx.available_semaphore,
+		&ctx.finished_semaphore,
+		ctx.fence,
+	) {
+		return
 	}
 
-	render_pass_info := vk.RenderPassBeginInfo {
-		sType = .RENDER_PASS_BEGIN_INFO,
-		renderPass = renderer._pipeline._render_pass.render_pass,
-		framebuffer = renderer._framebuffer_manager.framebuffers[image_index].framebuffer,
-		renderArea = vk.Rect2D {
-			offset = {0, 0},
-			extent = renderer._swap_chain.extent_2d,
-		},
+	if !swapchain.present_image(
+		ctx.present_queue,
+		&ctx.swap_chain,
+		&ctx.image_index,
+		&ctx.finished_semaphore,
+	) {
+		return
 	}
-
-	clear_values := [2]vk.ClearValue {
-		{color = {float32 = {0.0, 0.0, 0.0, 1.0}}},
-		{depthStencil = {depth = 1.0, stencil = 0}},
-	}
-	render_pass_info.clearValueCount = 2
-	render_pass_info.pClearValues = &clear_values[0]
-
-	vk.CmdBeginRenderPass(
-		renderer._command_buffers.buffers[renderer.current_frame],
-		&render_pass_info,
-		.INLINE,
-	)
-
-	vk.CmdBindPipeline(
-		renderer._command_buffers.buffers[renderer.current_frame],
-		.GRAPHICS,
-		renderer._pipeline.pipeline,
-	)
-
-	viewport := vk.Viewport {
-		x        = 0.0,
-		y        = 0.0,
-		width    = f32(renderer._swap_chain.extent_2d.width),
-		height   = f32(renderer._swap_chain.extent_2d.height),
-		minDepth = 0.0,
-		maxDepth = 1.0,
-	}
-	vk.CmdSetViewport(
-		renderer._command_buffers.buffers[renderer.current_frame],
-		0,
-		1,
-		&viewport,
-	)
-
-	scissor := vk.Rect2D {
-		offset = {0, 0},
-		extent = renderer._swap_chain.extent_2d,
-	}
-	vk.CmdSetScissor(
-		renderer._command_buffers.buffers[renderer.current_frame],
-		0,
-		1,
-		&scissor,
-	)
-
-	vk.CmdDraw(
-		renderer._command_buffers.buffers[renderer.current_frame],
-		3,
-		1,
-		0,
-		0,
-	)
-
-	imgui_manager.render_imgui(
-		renderer._command_buffers.buffers[renderer.current_frame],
-	)
-
-	vk.CmdEndRenderPass(
-		renderer._command_buffers.buffers[renderer.current_frame],
-	)
-
-	if vk.EndCommandBuffer(
-		   renderer._command_buffers.buffers[renderer.current_frame],
-	   ) !=
-	   .SUCCESS {
-		log.log_fatal("Failed to record command buffer")
-	}
-
-	submit_info := vk.SubmitInfo {
-		sType                = .SUBMIT_INFO,
-		waitSemaphoreCount   = 1,
-		pWaitSemaphores      = &renderer._sync_objects.image_available_semaphores[renderer.current_frame],
-		pWaitDstStageMask    = &vk.PipelineStageFlags {
-			.COLOR_ATTACHMENT_OUTPUT,
-		},
-		commandBufferCount   = 1,
-		pCommandBuffers      = &renderer._command_buffers.buffers[renderer.current_frame],
-		signalSemaphoreCount = 1,
-		pSignalSemaphores    = &renderer._sync_objects.render_finished_semaphores[renderer.current_frame],
-	}
-
-	if vk.QueueSubmit(
-		   renderer._device.graphics_queue,
-		   1,
-		   &submit_info,
-		   renderer._sync_objects.in_flight_fences[renderer.current_frame],
-	   ) !=
-	   .SUCCESS {
-		log.log_fatal("Failed to submit draw command buffer")
-	}
-
-	present_info := vk.PresentInfoKHR {
-		sType              = .PRESENT_INFO_KHR,
-		waitSemaphoreCount = 1,
-		pWaitSemaphores    = &renderer._sync_objects.render_finished_semaphores[renderer.current_frame],
-		swapchainCount     = 1,
-		pSwapchains        = &renderer._swap_chain.swap_chain,
-		pImageIndices      = &image_index,
-	}
-
-	result = vk.QueuePresentKHR(renderer._device.present_queue, &present_info)
-	if result == .ERROR_OUT_OF_DATE_KHR ||
-	   result == .SUBOPTIMAL_KHR ||
-	   window.framebuffer_resized {
-		window.framebuffer_resized = false
-		recreate_swap_chain(renderer)
-	} else if result != .SUCCESS {
-		log.log_fatal("Failed to present swap chain image")
-	}
-
-	imgui_manager.update_imgui_platform_windows()
 
 	renderer.current_frame =
 		(renderer.current_frame + 1) % shared.MAX_FRAMES_IN_FLIGHT
@@ -322,6 +206,23 @@ shutdown_renderer :: proc(renderer: ^Renderer) {
 	window.destroy_window(renderer._window)
 
 	log.log("Renderer shutdown")
+}
+
+@(private)
+get_render_context :: proc(renderer: ^Renderer) -> RenderContext {
+	return RenderContext {
+		image_index = 0,
+		logical_device = renderer._device.logical_device,
+		graphics_queue = renderer._device.graphics_queue,
+		present_queue = renderer._device.present_queue,
+		swap_chain = renderer._swap_chain,
+		buffer = renderer._command_buffers.buffers[renderer.current_frame],
+		fence = renderer._sync_objects.in_flight_fences[renderer.current_frame],
+		available_semaphore = renderer._sync_objects.image_available_semaphores[renderer.current_frame],
+		finished_semaphore = renderer._sync_objects.render_finished_semaphores[renderer.current_frame],
+		framebuffer_manager = renderer._framebuffer_manager,
+		pipeline = renderer._pipeline,
+	}
 }
 
 /* 

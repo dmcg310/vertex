@@ -173,6 +173,55 @@ query_swap_chain_support :: proc(
 	return details
 }
 
+get_next_image :: proc(
+	device: vk.Device,
+	swap_chain: vk.SwapchainKHR,
+	semaphore: vk.Semaphore,
+) -> (
+	u32,
+	bool,
+) {
+	image_index: u32
+	result := vk.AcquireNextImageKHR(
+		device,
+		swap_chain,
+		~u64(0),
+		semaphore,
+		0,
+		&image_index,
+	)
+
+	if result == .ERROR_OUT_OF_DATE_KHR {
+		return image_index, false
+	} else if result != .SUCCESS && result != .SUBOPTIMAL_KHR {
+		log.log_fatal("Failed to acquire swap chain image")
+	}
+
+	return image_index, true
+}
+
+present_image :: proc(
+	queue: vk.Queue,
+	swap_chain: ^SwapChain,
+	image_index: ^u32,
+	wait_semaphore: ^vk.Semaphore,
+) -> bool {
+	present_info := vk.PresentInfoKHR {
+		sType              = .PRESENT_INFO_KHR,
+		waitSemaphoreCount = 1,
+		pWaitSemaphores    = wait_semaphore,
+		swapchainCount     = 1,
+		pSwapchains        = &swap_chain.swap_chain,
+		pImageIndices      = image_index,
+	}
+
+	if result := vk.QueuePresentKHR(queue, &present_info); result != .SUCCESS {
+		return false
+	}
+
+	return true
+}
+
 @(private)
 create_image_views :: proc(swap_chain: ^SwapChain, device: vk.Device) {
 	swap_chain.image_views = make([]vk.ImageView, len(swap_chain.images))

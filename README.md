@@ -21,7 +21,7 @@ Ensure that both Odin and Vulkan SDK are properly installed and their paths are 
 ## Project Structure
 
 ```sh
-├── renderer\       # Odin source files
+├── src\       # Odin source files
 ├── scripts\        # Build and compile scripts
 │   ├── build.py
 │   ├── compile.bat
