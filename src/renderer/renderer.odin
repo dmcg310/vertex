@@ -1,23 +1,18 @@
-package main
+package renderer
 
-import im "../external/odin-imgui"
-import "command"
-import "core:fmt"
-import "device"
-import "framebuffer"
-import "imgui_manager"
-import "instance"
-import "log"
-import "pipeline"
-import "shared"
-import "swapchain"
-import "synchronization"
+import im "../../external/odin-imgui"
+import "../command"
+import "../device"
+import "../framebuffer"
+import "../imgui_manager"
+import "../instance"
+import "../log"
+import "../pipeline"
+import "../shared"
+import "../swapchain"
+import "../synchronization"
+import "../window"
 import vk "vendor:vulkan"
-import "window"
-
-WIDTH :: 1600
-HEIGHT :: 900
-TITLE :: "Vertex"
 
 Renderer :: struct {
 	_window:              window.Window,
@@ -34,44 +29,9 @@ Renderer :: struct {
 	current_frame:        u32,
 }
 
-main :: proc() {
-	err := log.init_logger()
-	if err != 0 {
-		fmt.eprintln("Failed to initialize logger:", err)
-		return
-	}
-	defer log.close_logger()
-
-	err = log.init_vulkan_logger()
-	if err != 0 {
-		log.log_fatal("Failed to initialize Vulkan logger")
-	}
-	defer log.close_vulkan_logger()
-
-
-	log.log("Application started")
-
-	renderer := Renderer {
-		current_frame = 0,
-	}
-
-	init_renderer(&renderer)
-
-	for !window.is_window_closed(renderer._window) {
-		window.poll_window_events()
-
-		render(&renderer)
-	}
-
-	vk.DeviceWaitIdle(renderer._device.logical_device)
-
-	shutdown_renderer(&renderer)
-
-	log.log("Application ended")
-}
-
-init_renderer :: proc(renderer: ^Renderer) {
-	renderer._window = window.init_window(WIDTH, HEIGHT, TITLE)
+init_renderer :: proc(renderer: ^Renderer, width, height: i32, title: string) {
+	renderer.current_frame = 0
+	renderer._window = window.init_window(width, height, title)
 	renderer._instance = instance.create_instance(true)
 	renderer._device = device.create_device()
 	renderer._surface = device.create_surface(
@@ -175,6 +135,7 @@ render :: proc(renderer: ^Renderer) {
 	}
 
 	imgui_manager.new_imgui_frame()
+
 	im.ShowDemoWindow()
 
 	vk.ResetFences(
@@ -328,6 +289,8 @@ render :: proc(renderer: ^Renderer) {
 }
 
 shutdown_renderer :: proc(renderer: ^Renderer) {
+	vk.DeviceWaitIdle(renderer._device.logical_device)
+
 	imgui_manager.destroy_imgui(
 		renderer._device.logical_device,
 		renderer._imgui,

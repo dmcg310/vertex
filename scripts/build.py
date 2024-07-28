@@ -83,7 +83,7 @@ def build_odin_project(debug=True):
     else:
         output_file = "bin/renderer_debug" if debug else "bin/renderer_release"
 
-    build_cmd = ["odin", "build", "renderer", f"-out:{output_file}"]
+    build_cmd = ["odin", "build", "src", f"-out:{output_file}"]
 
     if debug:
         build_cmd.extend(["-debug"])
