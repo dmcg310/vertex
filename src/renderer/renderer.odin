@@ -329,6 +329,7 @@ shutdown_renderer :: proc(renderer: ^Renderer) {
 * 	cyclic dependencies in swapchain and framebuffer
 */
 
+@(private)
 recreate_swap_chain :: proc(renderer: ^Renderer) {
 	width, height: i32 = 0, 0
 	for width == 0 || height == 0 {
@@ -371,6 +372,7 @@ recreate_swap_chain :: proc(renderer: ^Renderer) {
 	log.log("Swap chain recreated due to window resize")
 }
 
+@(private)
 cleanup_swap_chain :: proc(renderer: ^Renderer) {
 	framebuffer.destroy_framebuffer_manager(&renderer._framebuffer_manager)
 	pipeline.destroy_pipeline(
