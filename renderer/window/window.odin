@@ -32,6 +32,7 @@ init_window :: proc(width, height: i32, title: string) -> Window {
 	}
 
 	glfw.SetFramebufferSizeCallback(window.handle, framebuffer_size_callback)
+	glfw.SetKeyCallback(window.handle, key_callback)
 
 	fmt.println("Window created")
 
@@ -97,6 +98,16 @@ destroy_window :: proc(window: Window) {
 	glfw.Terminate()
 
 	fmt.println("Window destroyed")
+}
+
+@(private)
+key_callback :: proc "c" (
+	window: glfw.WindowHandle,
+	key, scancode, action, mods: i32,
+) {
+	if key == glfw.KEY_ESCAPE && action == glfw.PRESS {
+		glfw.SetWindowShouldClose(window, true)
+	}
 }
 
 @(private)
