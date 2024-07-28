@@ -7,6 +7,7 @@ import "device"
 import "framebuffer"
 import "imgui_manager"
 import "instance"
+import "log"
 import "pipeline"
 import "shared"
 import "swapchain"
@@ -34,6 +35,15 @@ Renderer :: struct {
 }
 
 main :: proc() {
+	err := log.init_logger()
+	if err != 0 {
+		fmt.eprintln("Failed to initialize logger:", err)
+		return
+	}
+	defer log.close_logger()
+
+	log.log("Application started")
+
 	renderer := Renderer {
 		current_frame = 0,
 	}
@@ -49,6 +59,8 @@ main :: proc() {
 	vk.DeviceWaitIdle(renderer._device.logical_device)
 
 	shutdown_renderer(&renderer)
+
+	fmt.println("Application ended")
 }
 
 init_renderer :: proc(renderer: ^Renderer) {
