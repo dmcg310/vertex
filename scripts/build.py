@@ -28,6 +28,39 @@ def compile_shaders():
     print_script("Shader compilation completed successfully")
 
 
+def init_submodules():
+    print_script("Initializing submodules...")
+
+    result = subprocess.run(["git", "submodule", "update", "--init", "--recursive"], check=True)
+    if result.returncode != 0:
+        print_error(f"Submodule initialization failed with exit code {result.returncode}")
+        sys.exit(1)
+
+    print_script("Submodule initialization completed successfully")
+
+
+def build_imgui(force=False):
+    imgui_lib_path = os.path.join("external", "odin-imgui", "imgui_windows_x64.lib")
+    if not force and os.path.exists(imgui_lib_path):
+        print_script("ImGui already built, skipping...")
+        return
+
+    print_script("Building ImGui...")
+
+    os.chdir("external/odin-imgui")
+
+    try:
+        with open(os.devnull, 'w') as devnull:
+            subprocess.run(["python", "build.py"], check=True, stdout=devnull, stderr=subprocess.STDOUT)
+
+        print_script("ImGui build completed successfully")
+    except subprocess.CalledProcessError as e:
+        print_error(f"ImGui build failed with exit code {e.returncode}")
+        sys.exit(1)
+    finally:
+        os.chdir("../..")
+
+
 def build_odin_project():
     print_script("Building Odin project...")
 
@@ -68,6 +101,13 @@ def main():
     os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
     print_script("Build process started")
+
+    init_submodules()
+
+    if "--rebuild-imgui" in sys.argv:
+        build_imgui(force=True)
+    else:
+        build_imgui()
 
     compile_shaders()
     binary_path = build_odin_project()
