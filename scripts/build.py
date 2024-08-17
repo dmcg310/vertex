@@ -24,14 +24,14 @@ def compile_shaders():
         try:
             subprocess.run(["chmod", "+x", compile_script], check=True)
         except subprocess.CalledProcessError as e:
-            print_error(f"Failed to set executable permissions for {
-                        compile_script} with exit code {e.returncode}")
+            print_error(
+                f"Failed to set executable permissions for {compile_script} with exit code {e.returncode}"
+            )
             sys.exit(1)
 
     result = subprocess.run(compile_script, shell=True, check=True)
     if result.returncode != 0:
-        print_error(f"Shader compilation failed with exit code {
-                    result.returncode}")
+        print_error(f"Shader compilation failed with exit code {result.returncode}")
         sys.exit(1)
     print_script("Shader compilation completed successfully")
 
@@ -40,18 +40,19 @@ def init_submodules():
     print_script("Initializing submodules...")
 
     result = subprocess.run(
-        ["git", "submodule", "update", "--init", "--recursive"], check=True)
+        ["git", "submodule", "update", "--init", "--recursive"], check=True
+    )
     if result.returncode != 0:
-        print_error(f"Submodule initialization failed with exit code {
-                    result.returncode}")
+        print_error(
+            f"Submodule initialization failed with exit code {result.returncode}"
+        )
         sys.exit(1)
 
     print_script("Submodule initialization completed successfully")
 
 
 def build_imgui(force=False):
-    imgui_lib_path = os.path.join(
-        "external", "odin-imgui", "imgui_windows_x64.lib")
+    imgui_lib_path = os.path.join("external", "odin-imgui", "imgui_windows_x64.lib")
     if not force and os.path.exists(imgui_lib_path):
         print_script("ImGui already built, skipping...")
         return
@@ -61,9 +62,13 @@ def build_imgui(force=False):
     os.chdir("external/odin-imgui")
 
     try:
-        with open(os.devnull, 'w') as devnull:
-            subprocess.run(["python", "build.py"], check=True,
-                           stdout=devnull, stderr=subprocess.STDOUT)
+        with open(os.devnull, "w") as devnull:
+            subprocess.run(
+                ["python3", "build.py"],
+                check=True,
+                stdout=devnull,
+                stderr=subprocess.STDOUT,
+            )
 
         print_script("ImGui build completed successfully")
     except subprocess.CalledProcessError as e:
@@ -74,22 +79,22 @@ def build_imgui(force=False):
 
 
 def build_odin_project(debug=True):
-    print_script(f"Building Odin project in {
-                 'debug' if debug else 'release'} mode...")
+    print_script(f"Building Odin project in {'debug' if debug else 'release'} mode...")
     os.makedirs("bin", exist_ok=True)
 
     if sys.platform.startswith("win"):
-        output_file = "bin\\renderer_debug.exe" if debug else "bin\\renderer_release.exe"
+        output_file = (
+            "bin\\vertex_debug.exe" if debug else "bin\\vertex_release.exe"
+        )
     else:
-        output_file = "bin/renderer_debug" if debug else "bin/renderer_release"
+        output_file = "bin/vertex_debug" if debug else "bin/vertex_release"
 
     build_cmd = ["odin", "build", "src", f"-out:{output_file}"]
 
     if debug:
         build_cmd.extend(["-debug"])
     else:
-        build_cmd.extend(
-            ["-o:speed", "-no-bounds-check", "-disable-assert"])
+        build_cmd.extend(["-o:speed", "-no-bounds-check", "-disable-assert"])
 
     print(f"{Fore.GREEN}{Style.BRIGHT}--- Odin Timings ---{Style.RESET_ALL}")
     build_cmd.extend(["-show-timings"])
@@ -100,8 +105,7 @@ def build_odin_project(debug=True):
         sys.exit(1)
 
     print(f"{Fore.GREEN}{Style.BRIGHT}--- Odin Timings End ---{Style.RESET_ALL}")
-    print_script(
-        f"Odin build completed successfully. Binary saved as {output_file}")
+    print_script(f"Odin build completed successfully. Binary saved as {output_file}")
     return output_file
 
 
