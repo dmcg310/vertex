@@ -100,8 +100,9 @@ record_command_buffer :: proc(
 		return false
 	}
 
-	clear_color := vk.ClearValue {
-		color = {float32 = {0.1, 0.1, 0.1, 1.0}},
+	clear_values := [2]vk.ClearValue {
+		{color = {float32 = {0.0, 0.0, 0.0, 1.0}}},
+		{depthStencil = {depth = 1.0, stencil = 0}},
 	}
 
 	render_pass_info := vk.RenderPassBeginInfo {
@@ -109,8 +110,8 @@ record_command_buffer :: proc(
 		renderPass = graphics_pipeline._render_pass.render_pass,
 		framebuffer = framebuffer_manager.framebuffers[image_idx].framebuffer,
 		renderArea = {offset = {x = 0, y = 0}, extent = swap_chain.extent_2d},
-		clearValueCount = 1,
-		pClearValues = &clear_color,
+		clearValueCount = len(clear_values),
+		pClearValues = &clear_values[0],
 	}
 
 	vk.CmdBeginRenderPass(command_buffer, &render_pass_info, .INLINE)

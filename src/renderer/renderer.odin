@@ -27,6 +27,7 @@ Renderer :: struct {
 	_sync_objects:        synchronization.SyncObject,
 	_imgui:               imgui_manager.ImGuiState,
 	current_frame:        u32,
+	image_index:          u32,
 }
 
 RenderContext :: struct {
@@ -116,19 +117,24 @@ init_renderer :: proc(renderer: ^Renderer, width, height: i32, title: string) {
 }
 
 render :: proc(renderer: ^Renderer) {
+	if !synchronization.wait_for_sync(
+		renderer._device.logical_device,
+		&renderer._sync_objects.in_flight_fences[renderer.current_frame],
+	) {
+		recreate_swap_chain(renderer)
+	}
+
+	image_index, ok := swapchain.get_next_image(
+		renderer._device.logical_device,
+		renderer._swap_chain.swap_chain,
+		renderer._sync_objects.image_available_semaphores[renderer.current_frame],
+	)
+	if !ok {
+		recreate_swap_chain(renderer)
+	}
+	renderer.image_index = image_index
+
 	ctx := get_render_context(renderer)
-
-	if !synchronization.wait_for_sync(ctx.logical_device, &ctx.fence) {
-		recreate_swap_chain(renderer)
-	}
-
-	if _, ok := swapchain.get_next_image(
-		ctx.logical_device,
-		ctx.swap_chain.swap_chain,
-		ctx.available_semaphore,
-	); !ok {
-		recreate_swap_chain(renderer)
-	}
 
 	imgui_manager.new_imgui_frame()
 
@@ -211,7 +217,6 @@ shutdown_renderer :: proc(renderer: ^Renderer) {
 @(private)
 get_render_context :: proc(renderer: ^Renderer) -> RenderContext {
 	return RenderContext {
-		image_index = 0,
 		logical_device = renderer._device.logical_device,
 		graphics_queue = renderer._device.graphics_queue,
 		present_queue = renderer._device.present_queue,
@@ -222,6 +227,7 @@ get_render_context :: proc(renderer: ^Renderer) -> RenderContext {
 		finished_semaphore = renderer._sync_objects.render_finished_semaphores[renderer.current_frame],
 		framebuffer_manager = renderer._framebuffer_manager,
 		pipeline = renderer._pipeline,
+		image_index = renderer.image_index,
 	}
 }
 
