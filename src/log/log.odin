@@ -43,8 +43,10 @@ init_logger :: proc() -> (err: os.Errno) {
 		log_file_name = "release_log.txt"
 	}
 
-	log_file_path := filepath.join({logs_dir, log_file_name})
-	defer delete(log_file_path)
+	log_file_path := filepath.join(
+		{logs_dir, log_file_name},
+		context.temp_allocator,
+	)
 
 	logger.file, err = os.open(
 		log_file_path,
@@ -69,7 +71,10 @@ init_vulkan_logger :: proc() -> (err: os.Errno) {
 		}
 	}
 
-	vulkan_log_file := filepath.join({logs_dir, "vulkan_validation.log"})
+	vulkan_log_file := filepath.join(
+		{logs_dir, "vulkan_validation.log"},
+		context.temp_allocator,
+	)
 	vulkan_logger.file, err = os.open(
 		vulkan_log_file,
 		os.O_WRONLY | os.O_CREATE | os.O_TRUNC,

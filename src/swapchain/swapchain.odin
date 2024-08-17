@@ -95,7 +95,7 @@ create_swap_chain :: proc(
 
 	vk.GetSwapchainImagesKHR(device, swap_chain.swap_chain, &image_count, nil)
 
-	swap_chain.images = make([]vk.Image, image_count)
+	swap_chain.images = make([]vk.Image, image_count, context.temp_allocator)
 	vk.GetSwapchainImagesKHR(
 		device,
 		swap_chain.swap_chain,
@@ -119,8 +119,6 @@ destroy_swap_chain :: proc(device: vk.Device, swap_chain: SwapChain) {
 	for image_view in swap_chain.image_views {
 		vk.DestroyImageView(device, image_view, nil)
 	}
-
-	destroy_image_views(swap_chain.image_views)
 
 	log.log("Vulkan swap chain destroyed")
 }
@@ -234,7 +232,11 @@ present_image :: proc(
 
 @(private)
 create_image_views :: proc(swap_chain: ^SwapChain, device: vk.Device) {
-	swap_chain.image_views = make([]vk.ImageView, len(swap_chain.images))
+	swap_chain.image_views = make(
+		[]vk.ImageView,
+		len(swap_chain.images),
+		context.temp_allocator,
+	)
 
 	for _, i in swap_chain.images {
 		create_info := vk.ImageViewCreateInfo {
@@ -269,11 +271,6 @@ create_image_views :: proc(swap_chain: ^SwapChain, device: vk.Device) {
 			)
 		}
 	}
-}
-
-@(private)
-destroy_image_views :: proc(image_views: []vk.ImageView) {
-	delete(image_views)
 }
 
 @(private)

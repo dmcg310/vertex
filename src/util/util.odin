@@ -5,26 +5,25 @@ import "core:fmt"
 import "core:os"
 import "core:strings"
 
-// Ensure caller frees the data
 to_cstring :: proc(s: string) -> cstring {
-	return strings.clone_to_cstring(s)
+	return strings.clone_to_cstring(s, context.temp_allocator)
 }
 
-// Ensure caller frees the data
 from_cstring :: proc(s: cstring) -> string {
-	return strings.clone_from_cstring(s)
+	return strings.clone_from_cstring(s, context.temp_allocator)
 }
 
-// Ensure caller frees the data
 string_from_bytes :: proc(data: []u8) -> string {
-	return strings.trim(strings.clone_from_bytes(data), "\x00")
+	return strings.trim(
+		strings.clone_from_bytes(data, context.temp_allocator),
+		"\x00",
+	)
 }
 
-// Ensure caller frees the data
 dynamic_array_of_strings_to_cstrings :: proc(
 	data: [dynamic]string,
 ) -> []cstring {
-	result := make([]cstring, len(data))
+	result := make([]cstring, len(data), context.temp_allocator)
 
 	for str, i in data {
 		result[i] = to_cstring(str)
@@ -33,11 +32,14 @@ dynamic_array_of_strings_to_cstrings :: proc(
 	return result
 }
 
-// Ensure caller frees the data
 read_file :: proc(path: string) -> ([]byte, bool) {
-	data, ok := os.read_entire_file(path)
+	data, ok := os.read_entire_file(path, context.temp_allocator)
 	if !ok {
-		log.log(fmt.aprintf("Failed to read file %s", path), "WARNING")
+		msg := fmt.aprintf("Failed to read file %s", path)
+		defer delete(msg)
+
+		log.log(msg, "WARNING")
+
 		return nil, false
 	}
 

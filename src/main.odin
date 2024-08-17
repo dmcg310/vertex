@@ -1,6 +1,7 @@
 package main
 
 import "core:fmt"
+import "core:mem"
 import "core:os"
 import "log"
 import "renderer"
@@ -14,6 +15,49 @@ Application :: struct {
 }
 
 main :: proc() {
+	when ODIN_DEBUG {
+		track: mem.Tracking_Allocator
+		mem.tracking_allocator_init(&track, context.allocator)
+		context.allocator = mem.tracking_allocator(&track)
+
+		defer {
+			alloc_map_len := len(track.allocation_map)
+			bad_free_array_len := len(track.bad_free_array)
+
+			if alloc_map_len == 0 && bad_free_array_len == 0 {
+				log.log("Every malloc was freed!", "INFO")
+			}
+
+			if alloc_map_len > 0 {
+				fmt.eprintf(
+					"=== %v allocations not freed: ===\n",
+					alloc_map_len,
+				)
+
+				for _, entry in track.allocation_map {
+					fmt.eprintf(
+						"- %v bytes @ %v\n",
+						entry.size,
+						entry.location,
+					)
+				}
+			}
+
+			if bad_free_array_len > 0 {
+				fmt.eprintf(
+					"=== %v incorrect frees: ===\n",
+					bad_free_array_len,
+				)
+
+				for entry in track.bad_free_array {
+					fmt.eprintf("- %p @ %v\n", entry.memory, entry.location)
+				}
+			}
+
+			mem.tracking_allocator_destroy(&track)
+		}
+	}
+
 	application := init_application()
 	run_application(&application)
 	shutdown_application(&application)
@@ -59,4 +103,6 @@ shutdown_application :: proc(application: ^Application) {
 
 	log.close_logger()
 	log.close_vulkan_logger()
+
+	free_all(context.temp_allocator)
 }

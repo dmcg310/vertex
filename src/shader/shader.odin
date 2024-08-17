@@ -68,8 +68,3 @@ create_shader_stage :: proc(
 		pName = "main",
 	}
 }
-
-destroy_shader_data :: proc(shaders: Shaders) {
-	delete(shaders.vertex_shader)
-	delete(shaders.fragment_shader)
-}

@@ -27,7 +27,6 @@ create_graphics_pipeline :: proc(
 	if !ok {
 		return pipeline
 	}
-	defer shader.destroy_shader_data(shaders)
 
 	vert_shader_module := shader.create_shader_module(
 		shaders.vertex_shader,

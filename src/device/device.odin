@@ -44,9 +44,7 @@ pick_physical_device :: proc(
 		log.log_fatal("Failed to find GPUs with Vulkan support")
 	}
 
-	devices := make([]vk.PhysicalDevice, device_count)
-	defer delete(devices)
-
+	devices := make([]vk.PhysicalDevice, device_count, context.temp_allocator)
 	vk.EnumeratePhysicalDevices(instance, &device_count, raw_data(devices))
 
 	highest_score := 0
@@ -82,12 +80,13 @@ create_logical_device :: proc(
 	device.graphics_family_index = u32(indices.data[.Graphics])
 
 	queue_priority: f32 = 1.0
+
 	queue_create_infos := make(
 		[dynamic]vk.DeviceQueueCreateInfo,
 		0,
 		len(unique_indices),
+		context.temp_allocator,
 	)
-	defer delete(queue_create_infos)
 
 	for queue_family_index in unique_indices {
 		queue_create_info := vk.DeviceQueueCreateInfo {
@@ -105,7 +104,6 @@ create_logical_device :: proc(
 	cstring_arr_device_extensions := util.dynamic_array_of_strings_to_cstrings(
 		DEVICE_EXTENSIONS,
 	)
-	defer delete(cstring_arr_device_extensions)
 
 	create_info := vk.DeviceCreateInfo {
 		sType                   = .DEVICE_CREATE_INFO,
@@ -124,8 +122,6 @@ create_logical_device :: proc(
 			util.dynamic_array_of_strings_to_cstrings(
 				instance.VALIDATION_LAYERS,
 			)
-		defer delete(cstring_arr_validation_layers)
-
 		create_info.ppEnabledLayerNames = raw_data(
 			cstring_arr_validation_layers,
 		)
@@ -237,9 +233,11 @@ check_device_extension_support :: proc(device: vk.PhysicalDevice) -> bool {
 	ext_count: u32
 	vk.EnumerateDeviceExtensionProperties(device, nil, &ext_count, nil)
 
-	available_extensions := make([]vk.ExtensionProperties, ext_count)
-	defer delete(available_extensions)
-
+	available_extensions := make(
+		[]vk.ExtensionProperties,
+		ext_count,
+		context.temp_allocator,
+	)
 	vk.EnumerateDeviceExtensionProperties(
 		device,
 		nil,
@@ -254,7 +252,6 @@ check_device_extension_support :: proc(device: vk.PhysicalDevice) -> bool {
 			temp := available_ext.extensionName
 
 			comparison := util.string_from_bytes(temp[:])
-			defer delete(comparison)
 
 			if comparison == ext {
 				found = true
@@ -270,23 +267,21 @@ check_device_extension_support :: proc(device: vk.PhysicalDevice) -> bool {
 	return true
 }
 
-device_properties_to_string :: proc(
-	properties: vk.PhysicalDeviceProperties,
-) -> string {
+print_properties :: proc(properties: vk.PhysicalDeviceProperties) {
 	temp := properties.deviceName
 	device_name := strings.trim_right(
-		strings.clone_from_bytes(temp[:]),
+		strings.clone_from_bytes(temp[:], context.temp_allocator),
 		"\x00",
 	)
-	defer delete(device_name)
 
-	result := fmt.aprintf(
+	properties := fmt.aprintf(
 		"Using: %s. Device Type: %s",
 		device_name,
 		device_type_to_string(properties.deviceType),
 	)
+	defer delete(properties)
 
-	return result
+	log.log(properties)
 }
 
 @(private)
