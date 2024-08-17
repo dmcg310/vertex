@@ -2,7 +2,6 @@ package instance
 
 import "../log"
 import "../util"
-import "../window"
 import "base:runtime"
 import "vendor:glfw"
 import vk "vendor:vulkan"
@@ -53,8 +52,6 @@ create_instance :: proc(enable_validation_layers: bool) -> Instance {
 	if enable_validation_layers && !check_validation_layer_support() {
 		log.log_fatal("Validation layers requested, but not available")
 	}
-
-	glfw_extensions := glfw.GetRequiredInstanceExtensions()
 
 	app_info := vk.ApplicationInfo {
 		sType              = .APPLICATION_INFO,

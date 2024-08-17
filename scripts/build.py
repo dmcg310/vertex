@@ -90,27 +90,25 @@ def build_odin_project(debug=True):
     build_cmd = ["odin", "build", "src", f"-out:{output_file}"]
 
     if debug:
-        build_cmd.extend(["-debug"])
+        build_cmd.extend(
+            [
+                "-debug",
+                "-sanitize:address",
+                "-vet",
+                "-vet-using-param",
+                "-vet-style",
+                "-vet-semicolon",
+                "-vet-cast",
+                "-vet-tabs",
+                "-warnings-as-errors",
+            ]
+        )
     else:
         build_cmd.extend(["-o:speed", "-no-bounds-check", "-disable-assert"])
 
     print(f"{Fore.GREEN}{Style.BRIGHT}--- Odin Timings ---{Style.RESET_ALL}")
 
-    build_cmd.extend(
-        [
-            "-show-timings",
-            "-vet",
-            "-vet-using-param",
-            "-vet-style",
-            "-vet-semicolon",
-            "-vet-cast",
-            "-vet-tabs",
-            "-warnings-as-errors",
-            "-sanitize:address",
-            "-sanitize:memory",
-            "-sanitize:thread",
-        ]
-    )
+    build_cmd.extend(["-show-timings"])
     result = subprocess.run(build_cmd, check=True)
     if result.returncode != 0:
         print_error(f"Odin build failed with exit code {result.returncode}")

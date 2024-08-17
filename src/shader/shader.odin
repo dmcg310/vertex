@@ -38,7 +38,7 @@ create_shader_module :: proc(
 	create_info := vk.ShaderModuleCreateInfo {
 		sType    = .SHADER_MODULE_CREATE_INFO,
 		codeSize = len(code),
-		pCode    = transmute(^u32)raw_data(code),
+		pCode    = cast(^u32)raw_data(code),
 	}
 
 	shader_module: vk.ShaderModule

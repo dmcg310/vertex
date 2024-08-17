@@ -5,7 +5,6 @@ import "../../external/odin-imgui/imgui_impl_glfw"
 import "../../external/odin-imgui/imgui_impl_vulkan"
 import "../log"
 import "base:runtime"
-import "core:os"
 import "vendor:glfw"
 import vk "vendor:vulkan"
 

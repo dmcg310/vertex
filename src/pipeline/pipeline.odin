@@ -49,7 +49,6 @@ create_graphics_pipeline :: proc(
 	vertex_input := create_vertex_input()
 	input_assembly := create_input_assembly(.TRIANGLE_LIST, false)
 
-	viewport := create_viewport(swap_chain)
 	viewport_state := create_viewport_state()
 
 	rasterizer := create_rasterizer(.FILL, 1.0, {}, .COUNTER_CLOCKWISE, false)
@@ -189,18 +188,6 @@ create_input_assembly :: proc(
 		sType = .PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
 		topology = topology,
 		primitiveRestartEnable = b32(restart ? u32(vk.TRUE) : u32(vk.FALSE)),
-	}
-}
-
-@(private)
-create_viewport :: proc(swap_chain: swapchain.SwapChain) -> vk.Viewport {
-	return vk.Viewport {
-		x = 0.0,
-		y = 0.0,
-		width = f32(swap_chain.extent_2d.width),
-		height = f32(swap_chain.extent_2d.height),
-		minDepth = 0.0,
-		maxDepth = 1.0,
 	}
 }
 

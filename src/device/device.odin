@@ -7,9 +7,7 @@ import "../swapchain"
 import "../util"
 import "../window"
 import "core:fmt"
-import "core:math"
 import "core:strings"
-import "vendor:glfw"
 import vk "vendor:vulkan"
 
 Surface :: struct {

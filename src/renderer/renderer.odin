@@ -122,7 +122,7 @@ render :: proc(renderer: ^Renderer) {
 		recreate_swap_chain(renderer)
 	}
 
-	if image_index, ok := swapchain.get_next_image(
+	if _, ok := swapchain.get_next_image(
 		ctx.logical_device,
 		ctx.swap_chain.swap_chain,
 		ctx.available_semaphore,

@@ -2,7 +2,6 @@ package swapchain
 
 import "../log"
 import "../shared"
-import "../util"
 import "../window"
 import "core:math"
 import "vendor:glfw"
@@ -226,7 +225,7 @@ present_image :: proc(
 create_image_views :: proc(swap_chain: ^SwapChain, device: vk.Device) {
 	swap_chain.image_views = make([]vk.ImageView, len(swap_chain.images))
 
-	for image, i in swap_chain.images {
+	for _, i in swap_chain.images {
 		create_info := vk.ImageViewCreateInfo {
 			sType = .IMAGE_VIEW_CREATE_INFO,
 			image = swap_chain.images[i],
