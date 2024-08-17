@@ -23,6 +23,8 @@ when ODIN_OS == .Windows {
 	) -> b32 {
 		context = runtime.default_context()
 		message := util.from_cstring(callback_data.pMessage)
+		defer delete(message)
+
 		log.log_vulkan(message, severity)
 
 		return false
@@ -36,6 +38,8 @@ when ODIN_OS == .Windows {
 	) -> b32 {
 		context = runtime.default_context()
 		message := util.from_cstring(callback_data.pMessage)
+		defer delete(message)
+
 		log.log_vulkan(message, severity)
 
 		return false
@@ -53,12 +57,18 @@ create_instance :: proc(enable_validation_layers: bool) -> Instance {
 		log.log_fatal("Validation layers requested, but not available")
 	}
 
+	cstr_app_name := util.to_cstring("Vertex")
+	defer delete(cstr_app_name)
+
+	cstr_engine_name := util.to_cstring("No Engine")
+	defer delete(cstr_engine_name)
+
 	app_info := vk.ApplicationInfo {
 		sType              = .APPLICATION_INFO,
 		pNext              = nil,
-		pApplicationName   = util.to_cstring("Vertex"),
+		pApplicationName   = cstr_app_name,
 		applicationVersion = vk.MAKE_VERSION(1, 0, 0),
-		pEngineName        = util.to_cstring("No Engine"),
+		pEngineName        = cstr_engine_name,
 		engineVersion      = vk.MAKE_VERSION(1, 0, 0),
 		apiVersion         = vk.API_VERSION_1_3,
 	}
@@ -78,8 +88,13 @@ create_instance :: proc(enable_validation_layers: bool) -> Instance {
 
 	if enable_validation_layers {
 		create_info.enabledLayerCount = u32(len(VALIDATION_LAYERS))
+
+		cstring_arr_validation_layers :=
+			util.dynamic_array_of_strings_to_cstrings(VALIDATION_LAYERS)
+		defer delete(cstring_arr_validation_layers)
+
 		create_info.ppEnabledLayerNames = raw_data(
-			util.dynamic_array_of_strings_to_cstrings(VALIDATION_LAYERS),
+			cstring_arr_validation_layers,
 		)
 
 		populate_debug_messenger_create_info(&debug_create_info)
@@ -131,6 +146,8 @@ check_validation_layer_support :: proc() -> bool {
 	vk.EnumerateInstanceLayerProperties(&layer_count, nil)
 
 	available_layers := make([]vk.LayerProperties, layer_count)
+	defer delete(available_layers)
+
 	vk.EnumerateInstanceLayerProperties(
 		&layer_count,
 		raw_data(available_layers),
@@ -142,6 +159,7 @@ check_validation_layer_support :: proc() -> bool {
 		for layer_properties in available_layers {
 			temp := layer_properties.layerName
 			comparison := util.string_from_bytes(temp[:])
+			defer delete(comparison)
 
 			if layer_name == comparison {
 				layer_found = true
@@ -163,6 +181,8 @@ get_required_extensions :: proc(instance: Instance) -> []cstring {
 	glfw_extension_count := len(glfw_extensions)
 
 	new_extensions := make([]cstring, glfw_extension_count + 1)
+	defer delete(new_extensions)
+
 	copy(new_extensions, glfw_extensions)
 
 	if instance.validation_layers_enabled {

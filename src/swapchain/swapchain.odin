@@ -32,6 +32,8 @@ create_swap_chain :: proc(
 	swap_chain := SwapChain{}
 
 	swap_chain_support := query_swap_chain_support(physical_device, surface)
+	defer destroy_swap_chain_support_details(swap_chain_support)
+
 	surface_format := choose_swap_surface_format(swap_chain_support.formats)
 	present_mode := choose_swap_present_mode(swap_chain_support.present_modes)
 	extent_2d := choose_swap_extent(swap_chain_support.capabilities, window)
@@ -118,7 +120,16 @@ destroy_swap_chain :: proc(device: vk.Device, swap_chain: SwapChain) {
 		vk.DestroyImageView(device, image_view, nil)
 	}
 
+	destroy_image_views(swap_chain.image_views)
+
 	log.log("Vulkan swap chain destroyed")
+}
+
+destroy_swap_chain_support_details :: proc(
+	swap_chain_support: SwapChainSupportDetails,
+) {
+	delete(swap_chain_support.present_modes)
+	delete(swap_chain_support.formats)
 }
 
 query_swap_chain_support :: proc(
@@ -258,6 +269,11 @@ create_image_views :: proc(swap_chain: ^SwapChain, device: vk.Device) {
 			)
 		}
 	}
+}
+
+@(private)
+destroy_image_views :: proc(image_views: []vk.ImageView) {
+	delete(image_views)
 }
 
 @(private)

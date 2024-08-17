@@ -113,7 +113,13 @@ init_renderer :: proc(renderer: ^Renderer, width, height: i32, title: string) {
 		renderer._device.physical_device,
 		&renderer._device.properties,
 	)
-	log.log(device.device_properties_to_string(renderer._device.properties))
+
+	properties := device.device_properties_to_string(
+		renderer._device.properties,
+	)
+	defer delete(properties)
+
+	log.log(properties)
 }
 
 render :: proc(renderer: ^Renderer) {

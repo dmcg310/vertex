@@ -25,6 +25,8 @@ find_queue_families :: proc(
 	vk.GetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, nil)
 
 	queue_families := make([]vk.QueueFamilyProperties, queue_family_count)
+	defer delete(queue_families)
+
 	vk.GetPhysicalDeviceQueueFamilyProperties(
 		device,
 		&queue_family_count,

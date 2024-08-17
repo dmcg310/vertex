@@ -21,10 +21,13 @@ init_window :: proc(width, height: i32, title: string) -> Window {
 
 	glfw.WindowHint(glfw.CLIENT_API, glfw.NO_API)
 
+	cstr_title := util.to_cstring(title)
+	defer delete(cstr_title)
+
 	if window.handle = glfw.CreateWindow(
 		width,
 		height,
-		util.to_cstring(title),
+		cstr_title,
 		nil,
 		nil,
 	); window.handle == nil {

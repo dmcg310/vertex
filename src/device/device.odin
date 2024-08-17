@@ -45,6 +45,8 @@ pick_physical_device :: proc(
 	}
 
 	devices := make([]vk.PhysicalDevice, device_count)
+	defer delete(devices)
+
 	vk.EnumeratePhysicalDevices(instance, &device_count, raw_data(devices))
 
 	highest_score := 0
@@ -72,6 +74,8 @@ create_logical_device :: proc(
 	)
 
 	unique_indices := make(map[int]struct {})
+	defer delete(unique_indices)
+
 	unique_indices[indices.data[.Graphics]] = {}
 	unique_indices[indices.data[.Present]] = {}
 
@@ -83,6 +87,7 @@ create_logical_device :: proc(
 		0,
 		len(unique_indices),
 	)
+	defer delete(queue_create_infos)
 
 	for queue_family_index in unique_indices {
 		queue_create_info := vk.DeviceQueueCreateInfo {
@@ -96,12 +101,16 @@ create_logical_device :: proc(
 	}
 
 	device_features := vk.PhysicalDeviceFeatures{}
+
+	cstring_arr_device_extensions := util.dynamic_array_of_strings_to_cstrings(
+		DEVICE_EXTENSIONS,
+	)
+	defer delete(cstring_arr_device_extensions)
+
 	create_info := vk.DeviceCreateInfo {
 		sType                   = .DEVICE_CREATE_INFO,
 		enabledExtensionCount   = u32(len(DEVICE_EXTENSIONS)),
-		ppEnabledExtensionNames = raw_data(
-			util.dynamic_array_of_strings_to_cstrings(DEVICE_EXTENSIONS),
-		),
+		ppEnabledExtensionNames = raw_data(cstring_arr_device_extensions),
 		pQueueCreateInfos       = raw_data(queue_create_infos),
 		queueCreateInfoCount    = u32(len(queue_create_infos)),
 		pEnabledFeatures        = &device_features,
@@ -110,10 +119,15 @@ create_logical_device :: proc(
 
 	if _instance.validation_layers_enabled {
 		create_info.enabledLayerCount = u32(len(instance.VALIDATION_LAYERS))
-		create_info.ppEnabledLayerNames = raw_data(
+
+		cstring_arr_validation_layers :=
 			util.dynamic_array_of_strings_to_cstrings(
 				instance.VALIDATION_LAYERS,
-			),
+			)
+		defer delete(cstring_arr_validation_layers)
+
+		create_info.ppEnabledLayerNames = raw_data(
+			cstring_arr_validation_layers,
 		)
 	}
 
@@ -204,6 +218,8 @@ is_device_suitable :: proc(
 			device,
 			surface,
 		)
+		defer swapchain.destroy_swap_chain_support_details(swap_chain_support)
+
 		swap_chain_adequate =
 			len(swap_chain_support.formats) > 0 &&
 			len(swap_chain_support.present_modes) > 0
@@ -222,6 +238,8 @@ check_device_extension_support :: proc(device: vk.PhysicalDevice) -> bool {
 	vk.EnumerateDeviceExtensionProperties(device, nil, &ext_count, nil)
 
 	available_extensions := make([]vk.ExtensionProperties, ext_count)
+	defer delete(available_extensions)
+
 	vk.EnumerateDeviceExtensionProperties(
 		device,
 		nil,
@@ -235,7 +253,10 @@ check_device_extension_support :: proc(device: vk.PhysicalDevice) -> bool {
 		for available_ext in &available_extensions {
 			temp := available_ext.extensionName
 
-			if util.string_from_bytes(temp[:]) == ext {
+			comparison := util.string_from_bytes(temp[:])
+			defer delete(comparison)
+
+			if comparison == ext {
 				found = true
 				break
 			}
@@ -253,14 +274,19 @@ device_properties_to_string :: proc(
 	properties: vk.PhysicalDeviceProperties,
 ) -> string {
 	temp := properties.deviceName
-	device_name := strings.clone_from_bytes(temp[:])
-	device_name = strings.trim_right(device_name, "\x00")
+	device_name := strings.trim_right(
+		strings.clone_from_bytes(temp[:]),
+		"\x00",
+	)
+	defer delete(device_name)
 
-	return fmt.aprintf(
+	result := fmt.aprintf(
 		"Using: %s. Device Type: %s",
 		device_name,
 		device_type_to_string(properties.deviceType),
 	)
+
+	return result
 }
 
 @(private)

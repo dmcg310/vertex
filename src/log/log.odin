@@ -44,6 +44,7 @@ init_logger :: proc() -> (err: os.Errno) {
 	}
 
 	log_file_path := filepath.join({logs_dir, log_file_name})
+	defer delete(log_file_path)
 
 	logger.file, err = os.open(
 		log_file_path,

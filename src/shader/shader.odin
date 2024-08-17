@@ -25,7 +25,10 @@ read_shaders :: proc(paths: []string) -> (Shaders, bool) {
 			shaders.fragment_shader = data
 		}
 
-		log.log(fmt.aprintf("%s loaded", path))
+		str := fmt.aprintf("%s loaded", path)
+		defer delete(str)
+
+		log.log(str)
 	}
 
 	return shaders, true
@@ -64,4 +67,9 @@ create_shader_stage :: proc(
 		module = module,
 		pName = "main",
 	}
+}
+
+destroy_shader_data :: proc(shaders: Shaders) {
+	delete(shaders.vertex_shader)
+	delete(shaders.fragment_shader)
 }
