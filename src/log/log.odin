@@ -32,7 +32,7 @@ init_logger :: proc() -> (err: os.Errno) {
 
 	if os.make_directory(logs_dir) != 0 {
 		if !os.exists(logs_dir) {
-			return os.EPERM
+			return path_not_found_error()
 		}
 	}
 
@@ -64,7 +64,7 @@ init_vulkan_logger :: proc() -> (err: os.Errno) {
 	logs_dir := "logs"
 	if os.make_directory(logs_dir) != 0 {
 		if !os.exists(logs_dir) {
-			return os.EPERM
+			return path_not_found_error()
 		}
 	}
 
@@ -217,5 +217,14 @@ get_log_level :: proc(
 		return "INFO"
 	} else {
 		return "DEBUG"
+	}
+}
+
+@(private)
+path_not_found_error :: proc() -> os.Errno {
+	when ODIN_OS == .Windows {
+		return os.ERROR_PATH_NOT_FOUND
+	} else {
+		return os.ENONET
 	}
 }
