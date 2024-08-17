@@ -83,9 +83,7 @@ def build_odin_project(debug=True):
     os.makedirs("bin", exist_ok=True)
 
     if sys.platform.startswith("win"):
-        output_file = (
-            "bin\\vertex_debug.exe" if debug else "bin\\vertex_release.exe"
-        )
+        output_file = "bin\\vertex_debug.exe" if debug else "bin\\vertex_release.exe"
     else:
         output_file = "bin/vertex_debug" if debug else "bin/vertex_release"
 
@@ -97,8 +95,22 @@ def build_odin_project(debug=True):
         build_cmd.extend(["-o:speed", "-no-bounds-check", "-disable-assert"])
 
     print(f"{Fore.GREEN}{Style.BRIGHT}--- Odin Timings ---{Style.RESET_ALL}")
-    build_cmd.extend(["-show-timings"])
 
+    build_cmd.extend(
+        [
+            "-show-timings",
+            "-vet",
+            "-vet-using-param",
+            "-vet-style",
+            "-vet-semicolon",
+            "-vet-cast",
+            "-vet-tabs",
+            "-warnings-as-errors",
+            "-sanitize:address",
+            "-sanitize:memory",
+            "-sanitize:thread",
+        ]
+    )
     result = subprocess.run(build_cmd, check=True)
     if result.returncode != 0:
         print_error(f"Odin build failed with exit code {result.returncode}")
