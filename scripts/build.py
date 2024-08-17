@@ -93,7 +93,6 @@ def build_odin_project(debug=True):
         build_cmd.extend(
             [
                 "-debug",
-                "-sanitize:address",
                 "-vet",
                 "-vet-using-param",
                 "-vet-style",
