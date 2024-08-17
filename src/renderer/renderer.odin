@@ -176,6 +176,8 @@ render :: proc(renderer: ^Renderer) {
 
 	renderer.current_frame =
 		(renderer.current_frame + 1) % shared.MAX_FRAMES_IN_FLIGHT
+
+	free_all(context.temp_allocator)
 }
 
 shutdown_renderer :: proc(renderer: ^Renderer) {
