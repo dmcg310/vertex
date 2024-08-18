@@ -100,6 +100,8 @@ init_renderer :: proc(renderer: ^Renderer, width, height: i32, title: string) {
 		renderer._device.logical_device,
 		renderer._device.physical_device,
 		vertices,
+		renderer._command_pool.pool,
+		renderer._device.graphics_queue,
 	)
 	renderer._command_buffers = command.create_command_buffers(
 		renderer._device.logical_device,

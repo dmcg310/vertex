@@ -23,13 +23,16 @@ create_vertex_buffer :: proc(
 	logical_device: vk.Device,
 	physical_device: vk.PhysicalDevice,
 	vertices: []Vertex,
+	command_pool: vk.CommandPool,
+	graphics_queue: vk.Queue,
 ) -> VertexBuffer {
 	buffer_size := vk.DeviceSize(size_of(Vertex) * len(vertices))
-	buffer, buffer_memory := create_buffer(
+
+	staging_buffer, staging_buffer_memory := create_buffer(
 		logical_device,
 		physical_device,
 		buffer_size,
-		{.VERTEX_BUFFER},
+		{.TRANSFER_SRC},
 		{.HOST_VISIBLE, .HOST_COHERENT},
 	)
 
@@ -38,7 +41,7 @@ create_vertex_buffer :: proc(
 
 	if result := vk.MapMemory(
 		logical_device,
-		buffer_memory,
+		staging_buffer_memory,
 		0,
 		buffer_size,
 		nil,
@@ -47,14 +50,35 @@ create_vertex_buffer :: proc(
 		log.log_fatal_with_vk_result("Failed to map memory", result)
 	}
 
-	om.copy(mapped_memory, raw_data(data), int(buffer_size)) // may fail
-	vk.UnmapMemory(logical_device, buffer_memory)
+	om.copy(mapped_memory, raw_data(data), int(buffer_size))
+	vk.UnmapMemory(logical_device, staging_buffer_memory)
+
+	vertex_buffer, vertex_buffer_memory := create_buffer(
+		logical_device,
+		physical_device,
+		buffer_size,
+		{.TRANSFER_DST, .VERTEX_BUFFER},
+		{.DEVICE_LOCAL},
+	)
+
+	copy_buffer(
+		staging_buffer,
+		vertex_buffer,
+		buffer_size,
+		logical_device,
+		command_pool,
+		graphics_queue,
+	)
+
+	vk.DestroyBuffer(logical_device, staging_buffer, nil)
+	vk.FreeMemory(logical_device, staging_buffer_memory, nil)
 
 	log.log("Vulkan vertex buffer created")
 
+
 	return VertexBuffer {
-		buffer = buffer,
-		memory = buffer_memory,
+		buffer = vertex_buffer,
+		memory = vertex_buffer_memory,
 		vertices = vertices,
 	}
 }
@@ -154,6 +178,72 @@ create_buffer :: proc(
 	vk.BindBufferMemory(logical_device, _buffer, _buffer_memory, 0)
 
 	return _buffer, _buffer_memory
+}
+
+@(private)
+copy_buffer :: proc(
+	src_buffer: vk.Buffer,
+	dst_buffer: vk.Buffer,
+	size: vk.DeviceSize,
+	device: vk.Device,
+	command_pool: vk.CommandPool,
+	graphics_queue: vk.Queue,
+) {
+	allocate_info := vk.CommandBufferAllocateInfo {
+		sType              = .COMMAND_BUFFER_ALLOCATE_INFO,
+		level              = .PRIMARY,
+		commandPool        = command_pool,
+		commandBufferCount = 1,
+	}
+
+	command_buffer := vk.CommandBuffer{}
+	if result := vk.AllocateCommandBuffers(
+		device,
+		&allocate_info,
+		&command_buffer,
+	); result != .SUCCESS {
+		log.log_fatal_with_vk_result(
+			"Failed to allocate command buffer",
+			result,
+		)
+	}
+
+	begin_info := vk.CommandBufferBeginInfo {
+		sType = .COMMAND_BUFFER_BEGIN_INFO,
+		flags = {.ONE_TIME_SUBMIT},
+	}
+
+	if result := vk.BeginCommandBuffer(command_buffer, &begin_info);
+	   result != .SUCCESS {
+		log.log_fatal_with_vk_result(
+			"Failed to begin recording command buffer",
+			result,
+		)
+	}
+
+	copy_region := vk.BufferCopy {
+		srcOffset = 0,
+		dstOffset = 0,
+		size      = size,
+	}
+
+	vk.CmdCopyBuffer(command_buffer, src_buffer, dst_buffer, 1, &copy_region)
+	vk.EndCommandBuffer(command_buffer)
+
+	submit_info := vk.SubmitInfo {
+		sType              = .SUBMIT_INFO,
+		commandBufferCount = 1,
+		pCommandBuffers    = &command_buffer,
+	}
+
+	if result := vk.QueueSubmit(graphics_queue, 1, &submit_info, 0);
+	   result != .SUCCESS {
+		log.log_fatal_with_vk_result("Failed to submit copy command", result)
+	}
+
+	vk.QueueWaitIdle(graphics_queue)
+
+	vk.FreeCommandBuffers(device, command_pool, 1, &command_buffer)
 }
 
 @(private)
