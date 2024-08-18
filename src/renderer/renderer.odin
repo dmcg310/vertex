@@ -25,6 +25,7 @@ Renderer :: struct {
 	_framebuffer_manager: framebuffer.FramebufferManager,
 	_command_pool:        command.CommandPool,
 	_vertex_buffer:       buffer.VertexBuffer,
+	_index_buffer:        buffer.IndexBuffer,
 	_command_buffers:     command.CommandBuffer,
 	_sync_objects:        synchronization.SyncObject,
 	_imgui:               imgui_manager.ImGuiState,
@@ -40,6 +41,7 @@ RenderContext :: struct {
 	swap_chain:          swapchain.SwapChain,
 	command_buffer:      vk.CommandBuffer,
 	vertex_buffer:       buffer.VertexBuffer,
+	index_buffer:        buffer.IndexBuffer,
 	fence:               vk.Fence,
 	available_semaphore: vk.Semaphore,
 	finished_semaphore:  vk.Semaphore,
@@ -49,10 +51,12 @@ RenderContext :: struct {
 
 init_renderer :: proc(renderer: ^Renderer, width, height: i32, title: string) {
 	vertices := []buffer.Vertex {
-		{{0.0, -0.5}, {1.0, 1.0, 1.0}},
-		{{0.5, 0.5}, {0.0, 1.0, 0.0}},
-		{{-0.5, 0.5}, {0.0, 0.0, 1.0}},
+		{{-0.5, -0.5}, {1.0, 0.0, 0.0}},
+		{{0.5, -0.5}, {0.0, 1.0, 0.0}},
+		{{0.5, 0.5}, {0.0, 0.0, 1.0}},
+		{{-0.5, 0.5}, {1.0, 1.0, 1.0}},
 	}
+	indices := []u32{0, 1, 2, 2, 3, 0}
 
 	renderer.current_frame = 0
 	renderer._window = window.init_window(width, height, title)
@@ -100,6 +104,13 @@ init_renderer :: proc(renderer: ^Renderer, width, height: i32, title: string) {
 		renderer._device.logical_device,
 		renderer._device.physical_device,
 		vertices,
+		renderer._command_pool.pool,
+		renderer._device.graphics_queue,
+	)
+	renderer._index_buffer = buffer.create_index_buffer(
+		renderer._device.logical_device,
+		renderer._device.physical_device,
+		indices,
 		renderer._command_pool.pool,
 		renderer._device.graphics_queue,
 	)
@@ -170,6 +181,7 @@ render :: proc(renderer: ^Renderer) {
 		ctx.swap_chain,
 		ctx.pipeline,
 		ctx.vertex_buffer,
+		ctx.index_buffer,
 		{.ONE_TIME_SUBMIT},
 		ctx.image_index,
 	) {
@@ -215,6 +227,10 @@ shutdown_renderer :: proc(renderer: ^Renderer) {
 		&renderer._vertex_buffer,
 		renderer._device.logical_device,
 	)
+	buffer.destroy_index_buffer(
+		&renderer._index_buffer,
+		renderer._device.logical_device,
+	)
 	command.destroy_command_pool(
 		&renderer._command_pool,
 		renderer._device.logical_device,
@@ -249,6 +265,7 @@ get_render_context :: proc(renderer: ^Renderer) -> RenderContext {
 		swap_chain = renderer._swap_chain,
 		command_buffer = renderer._command_buffers.buffers[renderer.current_frame],
 		vertex_buffer = renderer._vertex_buffer,
+		index_buffer = renderer._index_buffer,
 		fence = renderer._sync_objects.in_flight_fences[renderer.current_frame],
 		available_semaphore = renderer._sync_objects.image_available_semaphores[renderer.current_frame],
 		finished_semaphore = renderer._sync_objects.render_finished_semaphores[renderer.current_frame],

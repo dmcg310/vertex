@@ -84,6 +84,7 @@ record_command_buffer :: proc(
 	swap_chain: swapchain.SwapChain,
 	graphics_pipeline: pipeline.GraphicsPipeline,
 	vertex_buffer: buffer.VertexBuffer,
+	index_buffer: buffer.IndexBuffer,
 	flags: vk.CommandBufferUsageFlags,
 	image_idx: u32,
 ) -> bool {
@@ -144,8 +145,16 @@ record_command_buffer :: proc(
 		raw_data(vertex_buffers),
 		raw_data(offsets),
 	)
+	vk.CmdBindIndexBuffer(command_buffer, index_buffer.buffer, 0, .UINT32)
 
-	vk.CmdDraw(command_buffer, u32(len(vertex_buffer.vertices)), 1, 0, 0)
+	vk.CmdDrawIndexed(
+		command_buffer,
+		u32(len(index_buffer.indices)),
+		1,
+		0,
+		0,
+		0,
+	)
 
 	imgui_manager.render_imgui(command_buffer)
 

@@ -17,6 +17,12 @@ VertexBuffer :: struct {
 	vertices: []Vertex,
 }
 
+IndexBuffer :: struct {
+	buffer:  vk.Buffer,
+	memory:  vk.DeviceMemory,
+	indices: []u32,
+}
+
 /* VERTEX BUFFER */
 
 create_vertex_buffer :: proc(
@@ -118,6 +124,78 @@ destroy_vertex_buffer :: proc(
 	vk.FreeMemory(logical_device, buffer.memory, nil)
 
 	log.log("Vulkan vertex buffer destroyed")
+}
+
+/* INDEX BUFFER */
+
+create_index_buffer :: proc(
+	logical_device: vk.Device,
+	physical_device: vk.PhysicalDevice,
+	indices: []u32,
+	command_pool: vk.CommandPool,
+	graphics_queue: vk.Queue,
+) -> IndexBuffer {
+	buffer_size := vk.DeviceSize(size_of(u32) * len(indices))
+
+	staging_buffer, staging_buffer_memory := create_buffer(
+		logical_device,
+		physical_device,
+		buffer_size,
+		{.TRANSFER_SRC},
+		{.HOST_VISIBLE, .HOST_COHERENT},
+	)
+
+	mapped_memory: rawptr
+	data := slice.to_bytes(indices)
+
+	if result := vk.MapMemory(
+		logical_device,
+		staging_buffer_memory,
+		0,
+		buffer_size,
+		nil,
+		&mapped_memory,
+	); result != .SUCCESS {
+		log.log_fatal_with_vk_result("Failed to map memory", result)
+	}
+
+	om.copy(mapped_memory, raw_data(data), int(buffer_size))
+	vk.UnmapMemory(logical_device, staging_buffer_memory)
+
+	index_buffer, index_buffer_memory := create_buffer(
+		logical_device,
+		physical_device,
+		buffer_size,
+		{.TRANSFER_DST, .INDEX_BUFFER},
+		{.DEVICE_LOCAL},
+	)
+
+	copy_buffer(
+		staging_buffer,
+		index_buffer,
+		buffer_size,
+		logical_device,
+		command_pool,
+		graphics_queue,
+	)
+
+	vk.DestroyBuffer(logical_device, staging_buffer, nil)
+	vk.FreeMemory(logical_device, staging_buffer_memory, nil)
+
+	log.log("Vulkan index buffer created")
+
+	return IndexBuffer {
+		buffer = index_buffer,
+		memory = index_buffer_memory,
+		indices = indices,
+	}
+}
+
+destroy_index_buffer :: proc(buffer: ^IndexBuffer, logical_device: vk.Device) {
+	vk.DestroyBuffer(logical_device, buffer.buffer, nil)
+	vk.FreeMemory(logical_device, buffer.memory, nil)
+
+	log.log("Vulkan index buffer destroyed")
 }
 
 @(private)
