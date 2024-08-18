@@ -4,6 +4,7 @@ import "../log"
 import "../render_pass"
 import "../shader"
 import "../swapchain"
+import "../vertexbuffer"
 import vk "vendor:vulkan"
 
 VERT_PATH :: "shaders/vert.spv"
@@ -172,10 +173,15 @@ create_viewport_state :: proc() -> vk.PipelineViewportStateCreateInfo {
 
 @(private)
 create_vertex_input :: proc() -> vk.PipelineVertexInputStateCreateInfo {
+	binding_description := vertexbuffer.get_binding_description()
+	attribute_descriptions := vertexbuffer.get_attribute_descriptions()
+
 	return vk.PipelineVertexInputStateCreateInfo {
 		sType = .PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-		vertexBindingDescriptionCount = 0,
-		vertexAttributeDescriptionCount = 0,
+		vertexBindingDescriptionCount = 1,
+		vertexAttributeDescriptionCount = len(attribute_descriptions),
+		pVertexBindingDescriptions = &binding_description,
+		pVertexAttributeDescriptions = raw_data(attribute_descriptions[:]),
 	}
 }
 

@@ -6,6 +6,7 @@ import "../log"
 import "../pipeline"
 import "../shared"
 import "../swapchain"
+import "../vertexbuffer"
 import vk "vendor:vulkan"
 
 CommandPool :: struct {
@@ -134,6 +135,33 @@ record_command_buffer :: proc(
 	}
 
 	vk.CmdSetScissor(command_buffer, 0, 1, &scissor)
+
+	binding_description := vertexbuffer.get_binding_description()
+	attribute_descriptions := vertexbuffer.get_attribute_descriptions()
+
+	vertices := [3]vertexbuffer.Vertex {
+		{
+			{0.0, -0.5},
+			{1.0, 0.0, 0.0},
+			binding_description,
+			attribute_descriptions,
+		},
+		{
+			{0.5, 0.5},
+			{0.0, 1.0, 0.0},
+			binding_description,
+			attribute_descriptions,
+		},
+		{
+			{-0.5, 0.5},
+			{0.0, 0.0, 1.0},
+			binding_description,
+			attribute_descriptions,
+		},
+	}
+
+	_ = vertices
+
 	vk.CmdDraw(command_buffer, 3, 1, 0, 0)
 
 	imgui_manager.render_imgui(command_buffer)
