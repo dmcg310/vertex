@@ -173,16 +173,27 @@ create_viewport_state :: proc() -> vk.PipelineViewportStateCreateInfo {
 
 @(private)
 create_vertex_input :: proc() -> vk.PipelineVertexInputStateCreateInfo {
-	binding_description := vertexbuffer.get_binding_description()
-	attribute_descriptions := vertexbuffer.get_attribute_descriptions()
+	binding_description := new(
+		vk.VertexInputBindingDescription,
+		context.temp_allocator,
+	)
+	attribute_descriptions := new(
+		[2]vk.VertexInputAttributeDescription,
+		context.temp_allocator,
+	)
 
-	return vk.PipelineVertexInputStateCreateInfo {
-		sType = .PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-		vertexBindingDescriptionCount = 1,
-		vertexAttributeDescriptionCount = len(attribute_descriptions),
-		pVertexBindingDescriptions = &binding_description,
-		pVertexAttributeDescriptions = raw_data(attribute_descriptions[:]),
+	binding_description^ = vertexbuffer.get_binding_description()
+	attribute_descriptions^ = vertexbuffer.get_attribute_descriptions()
+
+	res := vk.PipelineVertexInputStateCreateInfo {
+		sType                           = .PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+		vertexBindingDescriptionCount   = 1,
+		vertexAttributeDescriptionCount = u32(len(attribute_descriptions)),
+		pVertexBindingDescriptions      = binding_description,
+		pVertexAttributeDescriptions    = raw_data(attribute_descriptions[:]),
 	}
+
+	return res
 }
 
 @(private)

@@ -7,10 +7,12 @@ import "../framebuffer"
 import "../imgui_manager"
 import "../instance"
 import "../log"
+import "../memory"
 import "../pipeline"
 import "../shared"
 import "../swapchain"
 import "../synchronization"
+import "../vertexbuffer"
 import "../window"
 import vk "vendor:vulkan"
 
@@ -23,6 +25,7 @@ Renderer :: struct {
 	_pipeline:            pipeline.GraphicsPipeline,
 	_framebuffer_manager: framebuffer.FramebufferManager,
 	_command_pool:        command.CommandPool,
+	_vertex_buffer:       vertexbuffer.VertexBuffer,
 	_command_buffers:     command.CommandBuffer,
 	_sync_objects:        synchronization.SyncObject,
 	_imgui:               imgui_manager.ImGuiState,
@@ -36,7 +39,8 @@ RenderContext :: struct {
 	graphics_queue:      vk.Queue,
 	present_queue:       vk.Queue,
 	swap_chain:          swapchain.SwapChain,
-	buffer:              vk.CommandBuffer,
+	command_buffer:      vk.CommandBuffer,
+	vertex_buffer:       vertexbuffer.VertexBuffer,
 	fence:               vk.Fence,
 	available_semaphore: vk.Semaphore,
 	finished_semaphore:  vk.Semaphore,
@@ -45,6 +49,12 @@ RenderContext :: struct {
 }
 
 init_renderer :: proc(renderer: ^Renderer, width, height: i32, title: string) {
+	vertices := []vertexbuffer.Vertex {
+		{{0.0, -0.5}, {1.0, 1.0, 1.0}},
+		{{0.5, 0.5}, {0.0, 1.0, 0.0}},
+		{{-0.5, 0.5}, {0.0, 0.0, 1.0}},
+	}
+
 	renderer.current_frame = 0
 	renderer._window = window.init_window(width, height, title)
 	renderer._instance = instance.create_instance(true)
@@ -86,6 +96,15 @@ init_renderer :: proc(renderer: ^Renderer, width, height: i32, title: string) {
 	renderer._command_pool = command.create_command_pool(
 		renderer._device.logical_device,
 		renderer._swap_chain,
+	)
+	renderer._vertex_buffer = vertexbuffer.create_vertex_buffer(
+		renderer._device.logical_device,
+		vertices,
+	)
+	memory.allocate_vertex_buffer_memory(
+		renderer._device.logical_device,
+		renderer._device.physical_device,
+		&renderer._vertex_buffer,
 	)
 	renderer._command_buffers = command.create_command_buffers(
 		renderer._device.logical_device,
@@ -146,13 +165,14 @@ render :: proc(renderer: ^Renderer) {
 	im.ShowDemoWindow()
 
 	synchronization.reset_fence(ctx.logical_device, &ctx.fence)
-	command.reset_command_buffer(ctx.buffer)
+	command.reset_command_buffer(ctx.command_buffer)
 
 	if !command.record_command_buffer(
-		ctx.buffer,
+		ctx.command_buffer,
 		ctx.framebuffer_manager,
 		ctx.swap_chain,
 		ctx.pipeline,
+		ctx.vertex_buffer,
 		{.ONE_TIME_SUBMIT},
 		ctx.image_index,
 	) {
@@ -162,7 +182,7 @@ render :: proc(renderer: ^Renderer) {
 	if !command.submit_command_buffer(
 		ctx.logical_device,
 		ctx.graphics_queue,
-		&ctx.buffer,
+		&ctx.command_buffer,
 		&ctx.available_semaphore,
 		&ctx.finished_semaphore,
 		ctx.fence,
@@ -192,6 +212,10 @@ shutdown_renderer :: proc(renderer: ^Renderer) {
 	)
 	synchronization.destroy_sync_objects(
 		&renderer._sync_objects,
+		renderer._device.logical_device,
+	)
+	vertexbuffer.destroy_vertex_buffer(
+		&renderer._vertex_buffer,
 		renderer._device.logical_device,
 	)
 	command.destroy_command_pool(
@@ -226,7 +250,8 @@ get_render_context :: proc(renderer: ^Renderer) -> RenderContext {
 		graphics_queue = renderer._device.graphics_queue,
 		present_queue = renderer._device.present_queue,
 		swap_chain = renderer._swap_chain,
-		buffer = renderer._command_buffers.buffers[renderer.current_frame],
+		command_buffer = renderer._command_buffers.buffers[renderer.current_frame],
+		vertex_buffer = renderer._vertex_buffer,
 		fence = renderer._sync_objects.in_flight_fences[renderer.current_frame],
 		available_semaphore = renderer._sync_objects.image_available_semaphores[renderer.current_frame],
 		finished_semaphore = renderer._sync_objects.render_finished_semaphores[renderer.current_frame],

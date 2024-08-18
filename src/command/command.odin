@@ -83,6 +83,7 @@ record_command_buffer :: proc(
 	framebuffer_manager: framebuffer.FramebufferManager,
 	swap_chain: swapchain.SwapChain,
 	graphics_pipeline: pipeline.GraphicsPipeline,
+	vertex_buffer: vertexbuffer.VertexBuffer,
 	flags: vk.CommandBufferUsageFlags,
 	image_idx: u32,
 ) -> bool {
@@ -126,43 +127,25 @@ record_command_buffer :: proc(
 		minDepth = 0.0,
 		maxDepth = 1.0,
 	}
-
 	vk.CmdSetViewport(command_buffer, 0, 1, &viewport)
 
 	scissor := vk.Rect2D {
 		offset = {0, 0},
 		extent = swap_chain.extent_2d,
 	}
-
 	vk.CmdSetScissor(command_buffer, 0, 1, &scissor)
 
-	binding_description := vertexbuffer.get_binding_description()
-	attribute_descriptions := vertexbuffer.get_attribute_descriptions()
+	offsets := []vk.DeviceSize{0}
+	vertex_buffers := []vk.Buffer{vertex_buffer.buffer}
+	vk.CmdBindVertexBuffers(
+		command_buffer,
+		0,
+		1,
+		raw_data(vertex_buffers),
+		raw_data(offsets),
+	)
 
-	vertices := [3]vertexbuffer.Vertex {
-		{
-			{0.0, -0.5},
-			{1.0, 0.0, 0.0},
-			binding_description,
-			attribute_descriptions,
-		},
-		{
-			{0.5, 0.5},
-			{0.0, 1.0, 0.0},
-			binding_description,
-			attribute_descriptions,
-		},
-		{
-			{-0.5, 0.5},
-			{0.0, 0.0, 1.0},
-			binding_description,
-			attribute_descriptions,
-		},
-	}
-
-	_ = vertices
-
-	vk.CmdDraw(command_buffer, 3, 1, 0, 0)
+	vk.CmdDraw(command_buffer, u32(len(vertex_buffer.vertices)), 1, 0, 0)
 
 	imgui_manager.render_imgui(command_buffer)
 
