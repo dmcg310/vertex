@@ -1,18 +1,17 @@
 package renderer
 
 import im "../../external/odin-imgui"
+import "../buffer"
 import "../command"
 import "../device"
 import "../framebuffer"
 import "../imgui_manager"
 import "../instance"
 import "../log"
-import "../memory"
 import "../pipeline"
 import "../shared"
 import "../swapchain"
 import "../synchronization"
-import "../vertexbuffer"
 import "../window"
 import vk "vendor:vulkan"
 
@@ -25,7 +24,7 @@ Renderer :: struct {
 	_pipeline:            pipeline.GraphicsPipeline,
 	_framebuffer_manager: framebuffer.FramebufferManager,
 	_command_pool:        command.CommandPool,
-	_vertex_buffer:       vertexbuffer.VertexBuffer,
+	_vertex_buffer:       buffer.VertexBuffer,
 	_command_buffers:     command.CommandBuffer,
 	_sync_objects:        synchronization.SyncObject,
 	_imgui:               imgui_manager.ImGuiState,
@@ -40,7 +39,7 @@ RenderContext :: struct {
 	present_queue:       vk.Queue,
 	swap_chain:          swapchain.SwapChain,
 	command_buffer:      vk.CommandBuffer,
-	vertex_buffer:       vertexbuffer.VertexBuffer,
+	vertex_buffer:       buffer.VertexBuffer,
 	fence:               vk.Fence,
 	available_semaphore: vk.Semaphore,
 	finished_semaphore:  vk.Semaphore,
@@ -49,7 +48,7 @@ RenderContext :: struct {
 }
 
 init_renderer :: proc(renderer: ^Renderer, width, height: i32, title: string) {
-	vertices := []vertexbuffer.Vertex {
+	vertices := []buffer.Vertex {
 		{{0.0, -0.5}, {1.0, 1.0, 1.0}},
 		{{0.5, 0.5}, {0.0, 1.0, 0.0}},
 		{{-0.5, 0.5}, {0.0, 0.0, 1.0}},
@@ -97,14 +96,10 @@ init_renderer :: proc(renderer: ^Renderer, width, height: i32, title: string) {
 		renderer._device.logical_device,
 		renderer._swap_chain,
 	)
-	renderer._vertex_buffer = vertexbuffer.create_vertex_buffer(
-		renderer._device.logical_device,
-		vertices,
-	)
-	memory.allocate_vertex_buffer_memory(
+	renderer._vertex_buffer = buffer.create_vertex_buffer(
 		renderer._device.logical_device,
 		renderer._device.physical_device,
-		&renderer._vertex_buffer,
+		vertices,
 	)
 	renderer._command_buffers = command.create_command_buffers(
 		renderer._device.logical_device,
@@ -214,7 +209,7 @@ shutdown_renderer :: proc(renderer: ^Renderer) {
 		&renderer._sync_objects,
 		renderer._device.logical_device,
 	)
-	vertexbuffer.destroy_vertex_buffer(
+	buffer.destroy_vertex_buffer(
 		&renderer._vertex_buffer,
 		renderer._device.logical_device,
 	)

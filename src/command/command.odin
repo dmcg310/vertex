@@ -1,12 +1,12 @@
 package command
 
+import "../buffer"
 import "../framebuffer"
 import "../imgui_manager"
 import "../log"
 import "../pipeline"
 import "../shared"
 import "../swapchain"
-import "../vertexbuffer"
 import vk "vendor:vulkan"
 
 CommandPool :: struct {
@@ -83,7 +83,7 @@ record_command_buffer :: proc(
 	framebuffer_manager: framebuffer.FramebufferManager,
 	swap_chain: swapchain.SwapChain,
 	graphics_pipeline: pipeline.GraphicsPipeline,
-	vertex_buffer: vertexbuffer.VertexBuffer,
+	vertex_buffer: buffer.VertexBuffer,
 	flags: vk.CommandBufferUsageFlags,
 	image_idx: u32,
 ) -> bool {

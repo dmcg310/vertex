@@ -1,10 +1,10 @@
 package pipeline
 
+import "../buffer"
 import "../log"
 import "../render_pass"
 import "../shader"
 import "../swapchain"
-import "../vertexbuffer"
 import vk "vendor:vulkan"
 
 VERT_PATH :: "shaders/vert.spv"
@@ -182,8 +182,8 @@ create_vertex_input :: proc() -> vk.PipelineVertexInputStateCreateInfo {
 		context.temp_allocator,
 	)
 
-	binding_description^ = vertexbuffer.get_binding_description()
-	attribute_descriptions^ = vertexbuffer.get_attribute_descriptions()
+	binding_description^ = buffer.get_vertex_buffer_binding_description()
+	attribute_descriptions^ = buffer.get_vertex_buffer_attribute_descriptions()
 
 	res := vk.PipelineVertexInputStateCreateInfo {
 		sType                           = .PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
