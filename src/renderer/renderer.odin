@@ -117,6 +117,11 @@ init_renderer :: proc(renderer: ^Renderer, width, height: i32, title: string) {
 }
 
 render :: proc(renderer: ^Renderer) {
+	if shared.is_framebuffer_resized {
+		shared.is_framebuffer_resized = false
+		recreate_swap_chain(renderer)
+	}
+
 	if !synchronization.wait_for_sync(
 		renderer._device.logical_device,
 		&renderer._sync_objects.in_flight_fences[renderer.current_frame],
@@ -246,7 +251,7 @@ recreate_swap_chain :: proc(renderer: ^Renderer) {
 
 	vk.DeviceWaitIdle(renderer._device.logical_device)
 
-	cleanup_swap_chain(renderer)
+	recreation_cleanup(renderer)
 
 	renderer._swap_chain = swapchain.create_swap_chain(
 		renderer._device.logical_device,
@@ -280,14 +285,14 @@ recreate_swap_chain :: proc(renderer: ^Renderer) {
 }
 
 @(private)
-cleanup_swap_chain :: proc(renderer: ^Renderer) {
+recreation_cleanup :: proc(renderer: ^Renderer) {
 	framebuffer.destroy_framebuffer_manager(&renderer._framebuffer_manager)
-	pipeline.destroy_pipeline(
-		renderer._device.logical_device,
-		renderer._pipeline,
-	)
 	swapchain.destroy_swap_chain(
 		renderer._device.logical_device,
 		renderer._swap_chain,
+	)
+	pipeline.destroy_pipeline(
+		renderer._device.logical_device,
+		renderer._pipeline,
 	)
 }

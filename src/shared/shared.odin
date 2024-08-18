@@ -1,7 +1,8 @@
 package shared
 
-// SHARED MODULE TO AVOID CYCLIC DEPENDENCIES
+// SHARED PACKAGE TO AVOID CYCLIC DEPENDENCIES
 
+import "vendor:glfw"
 import vk "vendor:vulkan"
 
 MAX_FRAMES_IN_FLIGHT :: 2
@@ -14,6 +15,8 @@ QueueFamily :: enum {
 QueueFamilyIndices :: struct {
 	data: [QueueFamily]int,
 }
+
+is_framebuffer_resized: bool = false
 
 find_queue_families :: proc(
 	device: vk.PhysicalDevice,
@@ -55,4 +58,11 @@ find_queue_families :: proc(
 	}
 
 	return indices
+}
+
+framebuffer_size_callback :: proc "c" (
+	window: glfw.WindowHandle,
+	width, height: i32,
+) {
+	is_framebuffer_resized = true
 }

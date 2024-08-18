@@ -1,6 +1,7 @@
 package window
 
 import "../log"
+import "../shared"
 import "../util"
 import "vendor:glfw"
 import vk "vendor:vulkan"
@@ -31,7 +32,10 @@ init_window :: proc(width, height: i32, title: string) -> Window {
 		log.log_fatal("Failed to create GLFW window")
 	}
 
-	glfw.SetFramebufferSizeCallback(window.handle, framebuffer_size_callback)
+	glfw.SetFramebufferSizeCallback(
+		window.handle,
+		shared.framebuffer_size_callback,
+	)
 	glfw.SetKeyCallback(window.handle, key_callback)
 
 	log.log("Window created")
@@ -105,12 +109,4 @@ key_callback :: proc "c" (
 	if key == glfw.KEY_ESCAPE && action == glfw.PRESS {
 		glfw.SetWindowShouldClose(window, true)
 	}
-}
-
-@(private)
-framebuffer_size_callback :: proc "c" (
-	window: glfw.WindowHandle,
-	width, height: i32,
-) {
-	framebuffer_resized = true
 }
