@@ -1,3 +1,5 @@
 bin/
 logs/
 *.spv
+odin.sublime-project
+odin.sublime-workspace
