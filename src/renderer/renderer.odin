@@ -59,7 +59,7 @@ renderer_init :: proc(renderer: ^Renderer, width, height: i32, title: string) {
 		renderer.instance.instance,
 		renderer.surface.surface,
 	)
-	device_create_logical(
+	device_logical_create(
 		&renderer.device,
 		renderer.instance,
 		renderer.surface,

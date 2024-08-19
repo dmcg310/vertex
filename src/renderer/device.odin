@@ -69,7 +69,7 @@ device_pick_physical :: proc(
 	}
 }
 
-device_create_logical :: proc(
+device_logical_create :: proc(
 	device: ^Device,
 	_instance: Instance,
 	surface: Surface,
