@@ -1,8 +1,5 @@
-package framebuffer
+package renderer
 
-import "../log"
-import "../render_pass"
-import "../swapchain"
 import vk "vendor:vulkan"
 
 Framebuffer :: struct {
@@ -14,13 +11,13 @@ Framebuffer :: struct {
 
 FramebufferManager :: struct {
 	framebuffers: [dynamic]Framebuffer,
-	swap_chain:   swapchain.SwapChain,
-	_render_pass: render_pass.RenderPass,
+	swap_chain:   SwapChain,
+	render_pass:  RenderPass,
 }
 
-create_framebuffer_manager :: proc(
-	swap_chain: swapchain.SwapChain,
-	_render_pass: render_pass.RenderPass,
+framebuffer_manager_create :: proc(
+	swap_chain: SwapChain,
+	render_pass: RenderPass,
 ) -> FramebufferManager {
 	framebuffer_manager := FramebufferManager {
 		framebuffers = make(
@@ -29,15 +26,15 @@ create_framebuffer_manager :: proc(
 			len(swap_chain.image_views),
 		),
 		swap_chain   = swap_chain,
-		_render_pass = _render_pass,
+		render_pass  = render_pass,
 	}
 
-	log.log("Framebuffer manager created")
+	log("Framebuffer manager created")
 
 	return framebuffer_manager
 }
 
-destroy_framebuffer_manager :: proc(manager: ^FramebufferManager) {
+framebuffer_manager_destroy :: proc(manager: ^FramebufferManager) {
 	for framebuffer in manager.framebuffers {
 		vk.DestroyFramebuffer(
 			manager.swap_chain.device,
@@ -48,10 +45,10 @@ destroy_framebuffer_manager :: proc(manager: ^FramebufferManager) {
 
 	delete(manager.framebuffers)
 
-	log.log("Framebuffer manager destroyed")
+	log("Framebuffer manager destroyed")
 }
 
-push_framebuffer :: proc(
+framebuffer_push :: proc(
 	manager: ^FramebufferManager,
 	attachment: ^vk.ImageView,
 ) {
@@ -63,7 +60,7 @@ push_framebuffer :: proc(
 
 	framebuffer_info := vk.FramebufferCreateInfo {
 		sType           = .FRAMEBUFFER_CREATE_INFO,
-		renderPass      = manager._render_pass.render_pass,
+		renderPass      = manager.render_pass.render_pass,
 		attachmentCount = 1,
 		pAttachments    = attachment,
 		width           = framebuffer.width,
@@ -77,7 +74,7 @@ push_framebuffer :: proc(
 		nil,
 		&framebuffer.framebuffer,
 	); result != .SUCCESS {
-		log.log_fatal_with_vk_result("Failed to create framebuffer", result)
+		log_fatal_with_vk_result("Failed to create framebuffer", result)
 	}
 
 	append(&manager.framebuffers, framebuffer)

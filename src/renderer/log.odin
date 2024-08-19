@@ -1,9 +1,10 @@
-package log
+package renderer
 
 import "core:fmt"
 import "core:os"
 import "core:path/filepath"
 import "core:time"
+
 import vk "vendor:vulkan"
 
 COLOR_RESET :: "\x1b[0m"
@@ -12,22 +13,26 @@ COLOR_GREY :: "\x1b[90m"
 COLOR_YELLOW :: "\x1b[33m"
 COLOR_BLUE :: "\x1b[34m"
 
-@(private)
+@(private = "file")
 logger: Logger
-@(private)
+
+@(private = "file")
 vulkan_logger: Logger
-@(private)
+
+@(private = "file")
 vulkan_log_count: int
-@(private)
+
+@(private = "file")
 vulkan_error_count: int
-@(private)
+
+@(private = "file")
 vulkan_warning_count: int
 
 Logger :: struct {
 	file: os.Handle,
 }
 
-init_logger :: proc() -> (err: os.Errno) {
+logger_init :: proc() -> (err: os.Errno) {
 	logs_dir := "logs"
 
 	if os.make_directory(logs_dir) != 0 {
@@ -63,7 +68,7 @@ init_logger :: proc() -> (err: os.Errno) {
 	return
 }
 
-init_vulkan_logger :: proc() -> (err: os.Errno) {
+vulkan_logger_init :: proc() -> (err: os.Errno) {
 	logs_dir := "logs"
 	if os.make_directory(logs_dir) != 0 {
 		if !os.exists(logs_dir) {
@@ -86,6 +91,7 @@ init_vulkan_logger :: proc() -> (err: os.Errno) {
 	}
 
 	log("Vulkan validation logging initialized")
+
 	return
 }
 
@@ -185,14 +191,14 @@ log_fatal_with_vk_result :: proc(
 	log_fatal(formatted_message, loc)
 }
 
-close_logger :: proc() {
+logger_close :: proc() {
 	if logger.file != 0 {
 		log("Logging terminated")
 		os.close(logger.file)
 	}
 }
 
-close_vulkan_logger :: proc() {
+vulkan_logger_close :: proc() {
 	if vulkan_logger.file != 0 {
 		summary := fmt.tprintf(
 			"Vulkan validation logging terminated. Total logs: %d, Errors: %d, Warnings: %d",
@@ -204,14 +210,14 @@ close_vulkan_logger :: proc() {
 
 		os.write_string(
 			vulkan_logger.file,
-			fmt.tprintf("\n--- Summary ---\n%s\n", summary),
+			fmt.tprintf("\n=== Summary ===n%s\n", summary),
 		)
 
 		os.close(vulkan_logger.file)
 	}
 }
 
-@(private)
+@(private = "file")
 get_log_level :: proc(
 	severity: vk.DebugUtilsMessageSeverityFlagsEXT,
 ) -> string {
@@ -226,7 +232,7 @@ get_log_level :: proc(
 	}
 }
 
-@(private)
+@(private = "file")
 path_not_found_error :: proc() -> os.Errno {
 	when ODIN_OS == .Windows {
 		return os.ERROR_PATH_NOT_FOUND

@@ -1,14 +1,11 @@
-package device
+package renderer
 
-import "../instance"
-import "../log"
-import "../shared"
-import "../swapchain"
-import "../util"
-import "../window"
 import "core:fmt"
 import "core:strings"
+
 import vk "vendor:vulkan"
+
+import "../util"
 
 Surface :: struct {
 	surface: vk.SurfaceKHR,
@@ -24,13 +21,24 @@ Device :: struct {
 	present_queue:         vk.Queue,
 }
 
+QueueFamily :: enum {
+	Graphics,
+	Present,
+}
+
+QueueFamilyIndices :: struct {
+	data: [QueueFamily]int,
+}
+
 DEVICE_EXTENSIONS := [dynamic]string{"VK_KHR_swapchain"}
 
-create_device :: proc() -> Device {
+MAX_FRAMES_IN_FLIGHT :: 2
+
+device_create :: proc() -> Device {
 	return Device{}
 }
 
-pick_physical_device :: proc(
+device_pick_physical :: proc(
 	device: ^Device,
 	instance: vk.Instance,
 	surface: vk.SurfaceKHR,
@@ -41,7 +49,7 @@ pick_physical_device :: proc(
 	vk.EnumeratePhysicalDevices(instance, &device_count, nil)
 
 	if device_count == 0 {
-		log.log_fatal("Failed to find GPUs with Vulkan support")
+		log_fatal("Failed to find GPUs with Vulkan support")
 	}
 
 	devices := make([]vk.PhysicalDevice, device_count, context.temp_allocator)
@@ -49,7 +57,7 @@ pick_physical_device :: proc(
 
 	highest_score := 0
 	for _device in devices {
-		score := is_device_suitable(_device, surface)
+		score := device_is_suitable(_device, surface)
 		if score > highest_score {
 			device.physical_device = _device
 			highest_score = score
@@ -57,16 +65,16 @@ pick_physical_device :: proc(
 	}
 
 	if highest_score == 0 || device.physical_device == nil {
-		log.log_fatal("Failed to find a suitable GPU")
+		log_fatal("Failed to find a suitable GPU")
 	}
 }
 
-create_logical_device :: proc(
+device_create_logical :: proc(
 	device: ^Device,
-	_instance: instance.Instance,
+	_instance: Instance,
 	surface: Surface,
 ) {
-	indices := shared.find_queue_families(
+	indices := device_find_queue_families(
 		device.physical_device,
 		surface.surface,
 	)
@@ -116,12 +124,10 @@ create_logical_device :: proc(
 	}
 
 	if _instance.validation_layers_enabled {
-		create_info.enabledLayerCount = u32(len(instance.VALIDATION_LAYERS))
+		create_info.enabledLayerCount = u32(len(VALIDATION_LAYERS))
 
 		cstring_arr_validation_layers :=
-			util.dynamic_array_of_strings_to_cstrings(
-				instance.VALIDATION_LAYERS,
-			)
+			util.dynamic_array_of_strings_to_cstrings(VALIDATION_LAYERS)
 		create_info.ppEnabledLayerNames = raw_data(
 			cstring_arr_validation_layers,
 		)
@@ -133,7 +139,7 @@ create_logical_device :: proc(
 		nil,
 		&device.logical_device,
 	); result != .SUCCESS {
-		log.log_fatal("Failed to create logical device")
+		log_fatal("Failed to create logical device")
 	}
 
 	vk.GetDeviceQueue(
@@ -152,38 +158,93 @@ create_logical_device :: proc(
 
 	vk.load_proc_addresses(device.logical_device)
 
-	log.log("Vulkan logical device created")
+	log("Vulkan logical device created")
 }
 
-create_surface :: proc(
-	_instance: instance.Instance,
-	_window: ^window.Window,
-) -> Surface {
-	surface := Surface {
-		surface = window.create_surface(_instance.instance, _window),
-	}
-
-	return surface
+device_surface_create :: proc(instance: Instance, window: ^Window) -> Surface {
+	return Surface{surface = window_create_surface(instance.instance, window)}
 }
 
-destroy_surface :: proc(
+device_surface_destroy :: proc(
 	surface: Surface,
-	instance: instance.Instance,
-	_window: ^window.Window,
+	instance: Instance,
+	window: ^Window,
 ) {
-	window.destroy_surface(surface.surface, instance.instance, _window)
+	window_destroy_surface(surface.surface, instance.instance, window)
 }
 
-destroy_logical_device :: proc(device: Device) {
+device_logical_destroy :: proc(device: Device) {
 	if device.logical_device != nil {
 		vk.DestroyDevice(device.logical_device, nil)
 	}
 
-	log.log("Vulkan logical device destroyed")
+	log("Vulkan logical device destroyed")
 }
 
-@(private)
-is_device_suitable :: proc(
+device_print_properties :: proc(device: vk.PhysicalDevice) {
+	properties := vk.PhysicalDeviceProperties{}
+	vk.GetPhysicalDeviceProperties(device, &properties)
+
+	temp := properties.deviceName
+	device_name := strings.trim_right(
+		strings.clone_from_bytes(temp[:], context.temp_allocator),
+		"\x00",
+	)
+
+	properties_str := fmt.aprintf(
+		"Using: %s. Device Type: %s",
+		device_name,
+		device_type_to_string(properties.deviceType),
+	)
+	defer delete(properties_str)
+
+	log(properties_str)
+}
+
+device_find_queue_families :: proc(
+	device: vk.PhysicalDevice,
+	surface: vk.SurfaceKHR,
+) -> QueueFamilyIndices {
+	indices := QueueFamilyIndices{}
+
+	queue_family_count: u32 = 0
+	vk.GetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, nil)
+
+	queue_families := make(
+		[]vk.QueueFamilyProperties,
+		queue_family_count,
+		context.temp_allocator,
+	)
+
+	vk.GetPhysicalDeviceQueueFamilyProperties(
+		device,
+		&queue_family_count,
+		raw_data(queue_families),
+	)
+
+	for queue_family, i in queue_families {
+		if .GRAPHICS in queue_family.queueFlags &&
+		   indices.data[.Graphics] == -1 {
+			indices.data[.Graphics] = i
+		}
+
+		present_support: b32
+		vk.GetPhysicalDeviceSurfaceSupportKHR(
+			device,
+			u32(i),
+			surface,
+			&present_support,
+		)
+		if present_support && indices.data[.Present] == -1 {
+			indices.data[.Present] = i
+		}
+	}
+
+	return indices
+}
+
+@(private = "file")
+device_is_suitable :: proc(
 	device: vk.PhysicalDevice,
 	surface: vk.SurfaceKHR,
 ) -> int {
@@ -204,17 +265,14 @@ is_device_suitable :: proc(
 		return 0
 	}
 
-	if !check_device_extension_support(device) {
+	if !device_check_extension_support(device) {
 		return 0
 	}
 
 	swap_chain_adequate := false
-	if check_device_extension_support(device) {
-		swap_chain_support := swapchain.query_swap_chain_support(
-			device,
-			surface,
-		)
-		defer swapchain.destroy_swap_chain_support_details(swap_chain_support)
+	if device_check_extension_support(device) {
+		swap_chain_support := swap_chain_query_support(device, surface)
+		defer swap_chain_support_details_destroy(swap_chain_support)
 
 		swap_chain_adequate =
 			len(swap_chain_support.formats) > 0 &&
@@ -228,8 +286,8 @@ is_device_suitable :: proc(
 	return score
 }
 
-@(private)
-check_device_extension_support :: proc(device: vk.PhysicalDevice) -> bool {
+@(private = "file")
+device_check_extension_support :: proc(device: vk.PhysicalDevice) -> bool {
 	ext_count: u32
 	vk.EnumerateDeviceExtensionProperties(device, nil, &ext_count, nil)
 
@@ -250,7 +308,6 @@ check_device_extension_support :: proc(device: vk.PhysicalDevice) -> bool {
 
 		for available_ext in &available_extensions {
 			temp := available_ext.extensionName
-
 			comparison := util.string_from_bytes(temp[:])
 
 			if comparison == ext {
@@ -267,24 +324,7 @@ check_device_extension_support :: proc(device: vk.PhysicalDevice) -> bool {
 	return true
 }
 
-print_properties :: proc(properties: vk.PhysicalDeviceProperties) {
-	temp := properties.deviceName
-	device_name := strings.trim_right(
-		strings.clone_from_bytes(temp[:], context.temp_allocator),
-		"\x00",
-	)
-
-	properties := fmt.aprintf(
-		"Using: %s. Device Type: %s",
-		device_name,
-		device_type_to_string(properties.deviceType),
-	)
-	defer delete(properties)
-
-	log.log(properties)
-}
-
-@(private)
+@(private = "file")
 device_type_to_string :: proc(deviceType: vk.PhysicalDeviceType) -> string {
 	switch deviceType {
 	case .INTEGRATED_GPU:

@@ -1,18 +1,19 @@
-package imgui_manager
+package renderer
 
-import im "../../external/odin-imgui"
-import "../../external/odin-imgui/imgui_impl_glfw"
-import "../../external/odin-imgui/imgui_impl_vulkan"
-import "../log"
 import "base:runtime"
 import "vendor:glfw"
+
+import im "../../external/odin-imgui"
 import vk "vendor:vulkan"
+
+import "../../external/odin-imgui/imgui_impl_glfw"
+import "../../external/odin-imgui/imgui_impl_vulkan"
 
 ImGuiState :: struct {
 	descriptor_pool: vk.DescriptorPool,
 }
 
-init_imgui :: proc(
+imgui_init :: proc(
 	window: glfw.WindowHandle,
 	render_pass: vk.RenderPass,
 	device: vk.Device,
@@ -53,7 +54,7 @@ init_imgui :: proc(
 		rawptr(instance),
 	)
 
-	descriptor_pool := create_descriptor_pool(device)
+	descriptor_pool := imgui_create_descriptor_pool(device)
 
 	init_info := imgui_impl_vulkan.InitInfo {
 		Instance              = instance,
@@ -72,46 +73,51 @@ init_imgui :: proc(
 	}
 	imgui_impl_vulkan.Init(&init_info, render_pass)
 
-	command_buffer := begin_single_time_commands(device, command_pool)
+	command_buffer := imgui_begin_single_time_commands(device, command_pool)
 	imgui_impl_vulkan.CreateFontsTexture()
 
-	end_single_time_commands(device, command_pool, &command_buffer, queue)
+	imgui_end_single_time_commands(
+		device,
+		command_pool,
+		&command_buffer,
+		queue,
+	)
 	imgui_impl_vulkan.DestroyFontsTexture()
 
-	log.log("ImGui context initialized")
+	log("ImGui context initialized")
 
 	return ImGuiState{descriptor_pool = descriptor_pool}
 }
 
-new_imgui_frame :: proc() {
+imgui_new_frame :: proc() {
 	imgui_impl_vulkan.NewFrame()
 	imgui_impl_glfw.NewFrame()
 	im.NewFrame()
 }
 
-render_imgui :: proc(command_buffer: vk.CommandBuffer) {
+imgui_render :: proc(command_buffer: vk.CommandBuffer) {
 	im.Render()
 	imgui_impl_vulkan.RenderDrawData(im.GetDrawData(), command_buffer)
 }
 
-update_imgui_platform_windows :: proc() {
+imgui_update_platform_windows :: proc() {
 	if .ViewportsEnable in im.GetIO().ConfigFlags {
 		im.UpdatePlatformWindows()
 		im.RenderPlatformWindowsDefault()
 	}
 }
 
-destroy_imgui :: proc(device: vk.Device, imgui_state: ImGuiState) {
+imgui_destroy :: proc(device: vk.Device, imgui_state: ImGuiState) {
 	vk.DestroyDescriptorPool(device, imgui_state.descriptor_pool, nil)
 	imgui_impl_vulkan.Shutdown()
 	imgui_impl_glfw.Shutdown()
 	im.DestroyContext()
 
-	log.log("ImGui context destroyed")
+	log("ImGui context destroyed")
 }
 
 @(private)
-begin_single_time_commands :: proc(
+imgui_begin_single_time_commands :: proc(
 	device: vk.Device,
 	pool: vk.CommandPool,
 ) -> vk.CommandBuffer {
@@ -136,7 +142,7 @@ begin_single_time_commands :: proc(
 }
 
 @(private)
-end_single_time_commands :: proc(
+imgui_end_single_time_commands :: proc(
 	device: vk.Device,
 	pool: vk.CommandPool,
 	command_buffer: ^vk.CommandBuffer,
@@ -157,7 +163,7 @@ end_single_time_commands :: proc(
 }
 
 @(private)
-create_descriptor_pool :: proc(device: vk.Device) -> vk.DescriptorPool {
+imgui_create_descriptor_pool :: proc(device: vk.Device) -> vk.DescriptorPool {
 	pool_sizes := []vk.DescriptorPoolSize {
 		{type = .SAMPLER, descriptorCount = 1000},
 		{type = .COMBINED_IMAGE_SAMPLER, descriptorCount = 1000},
@@ -187,7 +193,7 @@ create_descriptor_pool :: proc(device: vk.Device) -> vk.DescriptorPool {
 		nil,
 		&descriptor_pool,
 	); result != .SUCCESS {
-		log.log_fatal_with_vk_result(
+		log_fatal_with_vk_result(
 			"Failed to create descriptor pool for ImGui",
 			result,
 		)
@@ -200,6 +206,6 @@ create_descriptor_pool :: proc(device: vk.Device) -> vk.DescriptorPool {
 check_vk_result :: proc "c" (result: vk.Result) {
 	if result != .SUCCESS {
 		context = runtime.default_context()
-		log.log_fatal_with_vk_result("Imgui vulkan error", result)
+		log_fatal_with_vk_result("Imgui vulkan error", result)
 	}
 }

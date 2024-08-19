@@ -1,9 +1,7 @@
-package swapchain
+package renderer
 
-import "../log"
-import "../shared"
-import "../window"
 import "core:math"
+
 import "vendor:glfw"
 import vk "vendor:vulkan"
 
@@ -20,19 +18,19 @@ SwapChain :: struct {
 	images:               []vk.Image,
 	image_views:          []vk.ImageView,
 	device:               vk.Device,
-	queue_family_indices: shared.QueueFamilyIndices,
+	queue_family_indices: QueueFamilyIndices,
 }
 
-create_swap_chain :: proc(
+swap_chain_create :: proc(
 	device: vk.Device,
 	physical_device: vk.PhysicalDevice,
 	surface: vk.SurfaceKHR,
-	window: ^window.Window,
+	window: ^Window,
 ) -> SwapChain {
 	swap_chain := SwapChain{}
 
-	swap_chain_support := query_swap_chain_support(physical_device, surface)
-	defer destroy_swap_chain_support_details(swap_chain_support)
+	swap_chain_support := swap_chain_query_support(physical_device, surface)
+	defer swap_chain_support_details_destroy(swap_chain_support)
 
 	surface_format := choose_swap_surface_format(swap_chain_support.formats)
 	present_mode := choose_swap_present_mode(swap_chain_support.present_modes)
@@ -56,16 +54,16 @@ create_swap_chain :: proc(
 		imageUsage       = {.COLOR_ATTACHMENT},
 	}
 
-	indices := shared.find_queue_families(physical_device, surface)
+	indices := device_find_queue_families(physical_device, surface)
 	queue_family_indices := []u32 {
-		u32(indices.data[shared.QueueFamily.Graphics]),
-		u32(indices.data[shared.QueueFamily.Present]),
+		u32(indices.data[QueueFamily.Graphics]),
+		u32(indices.data[QueueFamily.Present]),
 	}
 
 	swap_chain.queue_family_indices = indices
 
-	if indices.data[shared.QueueFamily.Graphics] !=
-	   indices.data[shared.QueueFamily.Present] {
+	if indices.data[QueueFamily.Graphics] !=
+	   indices.data[QueueFamily.Present] {
 		create_info.imageSharingMode = .CONCURRENT
 		create_info.queueFamilyIndexCount = 2
 		create_info.pQueueFamilyIndices = raw_data(queue_family_indices)
@@ -87,7 +85,7 @@ create_swap_chain :: proc(
 		nil,
 		&swap_chain.swap_chain,
 	); result != .SUCCESS {
-		log.log_fatal_with_vk_result("Failed to create swap chain", result)
+		log_fatal_with_vk_result("Failed to create swap chain", result)
 	}
 
 	swap_chain.format = surface_format
@@ -106,31 +104,31 @@ create_swap_chain :: proc(
 	swap_chain.image_views = []vk.ImageView{}
 	swap_chain.device = device
 
-	log.log("Vulkan swap chain created")
+	log("Vulkan swap chain created")
 
 	create_image_views(&swap_chain, device)
 
 	return swap_chain
 }
 
-destroy_swap_chain :: proc(device: vk.Device, swap_chain: SwapChain) {
+swap_chain_destroy :: proc(device: vk.Device, swap_chain: SwapChain) {
 	vk.DestroySwapchainKHR(device, swap_chain.swap_chain, nil)
 
 	for image_view in swap_chain.image_views {
 		vk.DestroyImageView(device, image_view, nil)
 	}
 
-	log.log("Vulkan swap chain destroyed")
+	log("Vulkan swap chain destroyed")
 }
 
-destroy_swap_chain_support_details :: proc(
+swap_chain_support_details_destroy :: proc(
 	swap_chain_support: SwapChainSupportDetails,
 ) {
 	delete(swap_chain_support.present_modes)
 	delete(swap_chain_support.formats)
 }
 
-query_swap_chain_support :: proc(
+swap_chain_query_support :: proc(
 	physical_device: vk.PhysicalDevice,
 	surface: vk.SurfaceKHR,
 ) -> SwapChainSupportDetails {
@@ -181,7 +179,7 @@ query_swap_chain_support :: proc(
 	return details
 }
 
-get_next_image :: proc(
+swap_chain_get_next_image :: proc(
 	device: vk.Device,
 	swap_chain: vk.SwapchainKHR,
 	semaphore: vk.Semaphore,
@@ -202,13 +200,13 @@ get_next_image :: proc(
 	if result == .ERROR_OUT_OF_DATE_KHR {
 		return image_index, false
 	} else if result != .SUCCESS && result != .SUBOPTIMAL_KHR {
-		log.log_fatal("Failed to acquire swap chain image")
+		log_fatal("Failed to acquire swap chain image")
 	}
 
 	return image_index, true
 }
 
-present_image :: proc(
+swap_chain_present :: proc(
 	queue: vk.Queue,
 	swap_chain: ^SwapChain,
 	image_index: ^u32,
@@ -230,7 +228,7 @@ present_image :: proc(
 	return true
 }
 
-@(private)
+@(private = "file")
 create_image_views :: proc(swap_chain: ^SwapChain, device: vk.Device) {
 	swap_chain.image_views = make(
 		[]vk.ImageView,
@@ -265,15 +263,12 @@ create_image_views :: proc(swap_chain: ^SwapChain, device: vk.Device) {
 			nil,
 			&swap_chain.image_views[i],
 		); result != .SUCCESS {
-			log.log_fatal_with_vk_result(
-				"Failed to create image views",
-				result,
-			)
+			log_fatal_with_vk_result("Failed to create image views", result)
 		}
 	}
 }
 
-@(private)
+@(private = "file")
 choose_swap_surface_format :: proc(
 	available_formats: []vk.SurfaceFormatKHR,
 ) -> vk.SurfaceFormatKHR {
@@ -287,7 +282,7 @@ choose_swap_surface_format :: proc(
 	return available_formats[0]
 }
 
-@(private)
+@(private = "file")
 choose_swap_present_mode :: proc(
 	available_present_modes: []vk.PresentModeKHR,
 ) -> vk.PresentModeKHR {
@@ -300,16 +295,16 @@ choose_swap_present_mode :: proc(
 	return .FIFO
 }
 
-@(private)
+@(private = "file")
 choose_swap_extent :: proc(
 	capabilities: vk.SurfaceCapabilitiesKHR,
-	_window: ^window.Window,
+	window: ^Window,
 ) -> vk.Extent2D {
 	if capabilities.currentExtent.width != 0xFFFFFFFF {
 		return capabilities.currentExtent
 	}
 
-	width, height := glfw.GetFramebufferSize(_window.handle)
+	width, height := glfw.GetFramebufferSize(window.handle)
 
 	actual_extent := vk.Extent2D {
 		width  = u32(width),

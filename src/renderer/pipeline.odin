@@ -1,10 +1,5 @@
-package pipeline
+package renderer
 
-import "../buffer"
-import "../log"
-import "../render_pass"
-import "../shader"
-import "../swapchain"
 import vk "vendor:vulkan"
 
 VERT_PATH :: "shaders/vert.spv"
@@ -15,45 +10,34 @@ DYNAMIC_STATES := []vk.DynamicState{.VIEWPORT, .SCISSOR}
 GraphicsPipeline :: struct {
 	pipeline:        vk.Pipeline,
 	pipeline_layout: vk.PipelineLayout,
-	_render_pass:    render_pass.RenderPass,
+	render_pass:     RenderPass,
 }
 
-create_graphics_pipeline :: proc(
-	swap_chain: swapchain.SwapChain,
+pipeline_create :: proc(
+	swap_chain: SwapChain,
 	device: vk.Device,
 ) -> GraphicsPipeline {
 	pipeline := GraphicsPipeline{}
 
-	shaders, ok := shader.read_shaders({VERT_PATH, FRAG_PATH})
+	shaders, ok := shaders_read({VERT_PATH, FRAG_PATH})
 	if !ok {
 		return pipeline
 	}
 
-	vert_shader_module := shader.create_shader_module(
-		shaders.vertex_shader,
-		device,
-	)
-	frag_shader_module := shader.create_shader_module(
-		shaders.fragment_shader,
-		device,
-	)
+	vert_shader_module := shader_module_create(shaders.vertex_shader, device)
+	frag_shader_module := shader_module_create(shaders.fragment_shader, device)
 
 	shader_stages := []vk.PipelineShaderStageCreateInfo {
-		shader.create_shader_stage({.VERTEX}, vert_shader_module),
-		shader.create_shader_stage({.FRAGMENT}, frag_shader_module),
+		shader_stage_create({.VERTEX}, vert_shader_module),
+		shader_stage_create({.FRAGMENT}, frag_shader_module),
 	}
 
-	pipeline._render_pass = render_pass.create_render_pass(swap_chain, device)
-
+	pipeline.render_pass = render_pass_create(swap_chain, device)
 	pipeline.pipeline_layout = create_pipeline_layout(device)
-
 	vertex_input := create_vertex_input()
 	input_assembly := create_input_assembly(.TRIANGLE_LIST, false)
-
 	viewport_state := create_viewport_state()
-
 	rasterizer := create_rasterizer(.FILL, 1.0, {}, .COUNTER_CLOCKWISE, false)
-
 	multisampling := create_multisampling()
 	color_blend_attachment := create_color_blend_attachment(true)
 	color_blending := create_color_blend_state(&color_blend_attachment)
@@ -79,30 +63,27 @@ create_graphics_pipeline :: proc(
 		nil,
 		&pipeline.pipeline,
 	); result != .SUCCESS {
-		log.log_fatal_with_vk_result(
-			"Failed to create graphics pipeline",
-			result,
-		)
+		log_fatal_with_vk_result("Failed to create graphics pipeline", result)
 	}
 
 	vk.DestroyShaderModule(device, vert_shader_module, nil)
 	vk.DestroyShaderModule(device, frag_shader_module, nil)
 
-	log.log("Vulkan graphics pipeline created")
+	log("Vulkan graphics pipeline created")
 
 	return pipeline
 }
 
-destroy_pipeline :: proc(device: vk.Device, pipeline: GraphicsPipeline) {
-	render_pass.destroy_render_pass(device, pipeline._render_pass)
+pipeline_destroy :: proc(device: vk.Device, pipeline: GraphicsPipeline) {
+	render_pass_destroy(device, pipeline.render_pass)
 
 	vk.DestroyPipeline(device, pipeline.pipeline, nil)
 	vk.DestroyPipelineLayout(device, pipeline.pipeline_layout, nil)
 
-	log.log("Vulkan graphics pipeline destroyed")
+	log("Vulkan graphics pipeline destroyed")
 }
 
-@(private)
+@(private = "file")
 create_pipeline_info :: proc(
 	shader_stages: []vk.PipelineShaderStageCreateInfo,
 	vertex_input: ^vk.PipelineVertexInputStateCreateInfo,
@@ -126,7 +107,7 @@ create_pipeline_info :: proc(
 		pColorBlendState = color_blending,
 		pDynamicState = dynamic_state,
 		layout = pipeline.pipeline_layout,
-		renderPass = pipeline._render_pass.render_pass,
+		renderPass = pipeline.render_pass.render_pass,
 		subpass = 0,
 	}
 }
@@ -144,10 +125,7 @@ create_pipeline_layout :: proc(device: vk.Device) -> vk.PipelineLayout {
 		nil,
 		&pipeline_layout,
 	); result != .SUCCESS {
-		log.log_fatal_with_vk_result(
-			"Failed to create pipeline layout",
-			result,
-		)
+		log_fatal_with_vk_result("Failed to create pipeline layout", result)
 	}
 
 	return pipeline_layout
@@ -182,8 +160,8 @@ create_vertex_input :: proc() -> vk.PipelineVertexInputStateCreateInfo {
 		context.temp_allocator,
 	)
 
-	binding_description^ = buffer.get_vertex_buffer_binding_description()
-	attribute_descriptions^ = buffer.get_vertex_buffer_attribute_descriptions()
+	binding_description^ = buffer_get_vertex_binding_description()
+	attribute_descriptions^ = buffer_get_vertex_attribute_descriptions()
 
 	res := vk.PipelineVertexInputStateCreateInfo {
 		sType                           = .PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,

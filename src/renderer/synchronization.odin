@@ -1,16 +1,14 @@
-package synchronization
+package renderer
 
-import "../log"
-import "../shared"
 import vk "vendor:vulkan"
 
 SyncObject :: struct {
-	image_available_semaphores: [shared.MAX_FRAMES_IN_FLIGHT]vk.Semaphore,
-	render_finished_semaphores: [shared.MAX_FRAMES_IN_FLIGHT]vk.Semaphore,
-	in_flight_fences:           [shared.MAX_FRAMES_IN_FLIGHT]vk.Fence,
+	image_available_semaphores: [MAX_FRAMES_IN_FLIGHT]vk.Semaphore,
+	render_finished_semaphores: [MAX_FRAMES_IN_FLIGHT]vk.Semaphore,
+	in_flight_fences:           [MAX_FRAMES_IN_FLIGHT]vk.Fence,
 }
 
-create_sync_objects :: proc(device: vk.Device) -> SyncObject {
+sync_objects_create :: proc(device: vk.Device) -> SyncObject {
 	sync_object := SyncObject{}
 
 	semaphore_info := vk.SemaphoreCreateInfo {
@@ -22,7 +20,7 @@ create_sync_objects :: proc(device: vk.Device) -> SyncObject {
 		flags = {.SIGNALED},
 	}
 
-	for i := 0; i < shared.MAX_FRAMES_IN_FLIGHT; i += 1 {
+	for i := 0; i < MAX_FRAMES_IN_FLIGHT; i += 1 {
 		result: vk.Result
 
 		result = vk.CreateSemaphore(
@@ -32,7 +30,7 @@ create_sync_objects :: proc(device: vk.Device) -> SyncObject {
 			&sync_object.image_available_semaphores[i],
 		)
 		if result != .SUCCESS {
-			log.log_fatal_with_vk_result(
+			log_fatal_with_vk_result(
 				"Failed to create image available semaphore",
 				result,
 			)
@@ -45,7 +43,7 @@ create_sync_objects :: proc(device: vk.Device) -> SyncObject {
 			&sync_object.render_finished_semaphores[i],
 		)
 		if result != .SUCCESS {
-			log.log_fatal_with_vk_result(
+			log_fatal_with_vk_result(
 				"Failed to create render finished semaphore",
 				result,
 			)
@@ -58,20 +56,20 @@ create_sync_objects :: proc(device: vk.Device) -> SyncObject {
 			&sync_object.in_flight_fences[i],
 		)
 		if result != .SUCCESS {
-			log.log_fatal_with_vk_result(
+			log_fatal_with_vk_result(
 				"Failed to create in-flight fence",
 				result,
 			)
 		}
 	}
 
-	log.log("Vulkan synchronization objects created")
+	log("Vulkan synchronization objects created")
 
 	return sync_object
 }
 
-destroy_sync_objects :: proc(sync_object: ^SyncObject, device: vk.Device) {
-	for i := 0; i < shared.MAX_FRAMES_IN_FLIGHT; i += 1 {
+sync_objects_destroy :: proc(sync_object: ^SyncObject, device: vk.Device) {
+	for i := 0; i < MAX_FRAMES_IN_FLIGHT; i += 1 {
 		vk.DestroySemaphore(
 			device,
 			sync_object.image_available_semaphores[i],
@@ -87,21 +85,21 @@ destroy_sync_objects :: proc(sync_object: ^SyncObject, device: vk.Device) {
 		vk.DestroyFence(device, sync_object.in_flight_fences[i], nil)
 	}
 
-	log.log("Vulkan synchronization objects destroyed")
+	log("Vulkan synchronization objects destroyed")
 }
 
-wait_for_sync :: proc(device: vk.Device, fence: ^vk.Fence) -> bool {
+sync_wait :: proc(device: vk.Device, fence: ^vk.Fence) -> bool {
 	result := vk.WaitForFences(device, 1, fence, true, ~u64(0))
 
 	if result == .ERROR_OUT_OF_DATE_KHR {
 		return false
 	} else if result != .SUCCESS && result != .TIMEOUT {
-		log.log_fatal("Failed to wait for fences")
+		log_fatal("Failed to wait for fences")
 	}
 
 	return true
 }
 
-reset_fence :: proc(device: vk.Device, fence: ^vk.Fence) {
+sync_reset_fence :: proc(device: vk.Device, fence: ^vk.Fence) {
 	vk.ResetFences(device, 1, fence)
 }

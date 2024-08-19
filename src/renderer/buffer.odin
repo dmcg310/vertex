@@ -1,14 +1,17 @@
-package buffer
+package renderer
 
-import "../log"
 import "core:math/linalg"
-import om "core:mem"
+import "core:mem"
 import "core:slice"
+
 import vk "vendor:vulkan"
 
+Vec2 :: linalg.Vector2f32
+Vec3 :: linalg.Vector3f32
+
 Vertex :: struct {
-	pos:   linalg.Vector2f32,
-	color: linalg.Vector3f32,
+	pos:   Vec2,
+	color: Vec3,
 }
 
 VertexBuffer :: struct {
@@ -25,7 +28,7 @@ IndexBuffer :: struct {
 
 /* VERTEX BUFFER */
 
-create_vertex_buffer :: proc(
+buffer_vertex_create :: proc(
 	logical_device: vk.Device,
 	physical_device: vk.PhysicalDevice,
 	vertices: []Vertex,
@@ -34,7 +37,7 @@ create_vertex_buffer :: proc(
 ) -> VertexBuffer {
 	buffer_size := vk.DeviceSize(size_of(Vertex) * len(vertices))
 
-	staging_buffer, staging_buffer_memory := create_buffer(
+	staging_buffer, staging_buffer_memory := buffer_create(
 		logical_device,
 		physical_device,
 		buffer_size,
@@ -53,13 +56,13 @@ create_vertex_buffer :: proc(
 		nil,
 		&mapped_memory,
 	); result != .SUCCESS {
-		log.log_fatal_with_vk_result("Failed to map memory", result)
+		log_fatal_with_vk_result("Failed to map memory", result)
 	}
 
-	om.copy(mapped_memory, raw_data(data), int(buffer_size))
+	mem.copy(mapped_memory, raw_data(data), int(buffer_size))
 	vk.UnmapMemory(logical_device, staging_buffer_memory)
 
-	vertex_buffer, vertex_buffer_memory := create_buffer(
+	vertex_buffer, vertex_buffer_memory := buffer_create(
 		logical_device,
 		physical_device,
 		buffer_size,
@@ -67,7 +70,7 @@ create_vertex_buffer :: proc(
 		{.DEVICE_LOCAL},
 	)
 
-	copy_buffer(
+	buffer_copy(
 		staging_buffer,
 		vertex_buffer,
 		buffer_size,
@@ -79,8 +82,7 @@ create_vertex_buffer :: proc(
 	vk.DestroyBuffer(logical_device, staging_buffer, nil)
 	vk.FreeMemory(logical_device, staging_buffer_memory, nil)
 
-	log.log("Vulkan vertex buffer created")
-
+	log("Vulkan vertex buffer created")
 
 	return VertexBuffer {
 		buffer = vertex_buffer,
@@ -89,7 +91,7 @@ create_vertex_buffer :: proc(
 	}
 }
 
-get_vertex_buffer_binding_description :: proc(
+buffer_get_vertex_binding_description :: proc(
 ) -> vk.VertexInputBindingDescription {
 	return vk.VertexInputBindingDescription {
 		binding = 0,
@@ -98,7 +100,7 @@ get_vertex_buffer_binding_description :: proc(
 	}
 }
 
-get_vertex_buffer_attribute_descriptions :: proc(
+buffer_get_vertex_attribute_descriptions :: proc(
 ) -> [2]vk.VertexInputAttributeDescription {
 	return [2]vk.VertexInputAttributeDescription {
 		{
@@ -116,19 +118,19 @@ get_vertex_buffer_attribute_descriptions :: proc(
 	}
 }
 
-destroy_vertex_buffer :: proc(
+buffer_vertex_destroy :: proc(
 	buffer: ^VertexBuffer,
 	logical_device: vk.Device,
 ) {
 	vk.DestroyBuffer(logical_device, buffer.buffer, nil)
 	vk.FreeMemory(logical_device, buffer.memory, nil)
 
-	log.log("Vulkan vertex buffer destroyed")
+	log("Vulkan vertex buffer destroyed")
 }
 
 /* INDEX BUFFER */
 
-create_index_buffer :: proc(
+buffer_index_create :: proc(
 	logical_device: vk.Device,
 	physical_device: vk.PhysicalDevice,
 	indices: []u32,
@@ -137,7 +139,7 @@ create_index_buffer :: proc(
 ) -> IndexBuffer {
 	buffer_size := vk.DeviceSize(size_of(u32) * len(indices))
 
-	staging_buffer, staging_buffer_memory := create_buffer(
+	staging_buffer, staging_buffer_memory := buffer_create(
 		logical_device,
 		physical_device,
 		buffer_size,
@@ -156,13 +158,13 @@ create_index_buffer :: proc(
 		nil,
 		&mapped_memory,
 	); result != .SUCCESS {
-		log.log_fatal_with_vk_result("Failed to map memory", result)
+		log_fatal_with_vk_result("Failed to map memory", result)
 	}
 
-	om.copy(mapped_memory, raw_data(data), int(buffer_size))
+	mem.copy(mapped_memory, raw_data(data), int(buffer_size))
 	vk.UnmapMemory(logical_device, staging_buffer_memory)
 
-	index_buffer, index_buffer_memory := create_buffer(
+	index_buffer, index_buffer_memory := buffer_create(
 		logical_device,
 		physical_device,
 		buffer_size,
@@ -170,7 +172,7 @@ create_index_buffer :: proc(
 		{.DEVICE_LOCAL},
 	)
 
-	copy_buffer(
+	buffer_copy(
 		staging_buffer,
 		index_buffer,
 		buffer_size,
@@ -182,7 +184,7 @@ create_index_buffer :: proc(
 	vk.DestroyBuffer(logical_device, staging_buffer, nil)
 	vk.FreeMemory(logical_device, staging_buffer_memory, nil)
 
-	log.log("Vulkan index buffer created")
+	log("Vulkan index buffer created")
 
 	return IndexBuffer {
 		buffer = index_buffer,
@@ -191,15 +193,15 @@ create_index_buffer :: proc(
 	}
 }
 
-destroy_index_buffer :: proc(buffer: ^IndexBuffer, logical_device: vk.Device) {
+buffer_index_destroy :: proc(buffer: ^IndexBuffer, logical_device: vk.Device) {
 	vk.DestroyBuffer(logical_device, buffer.buffer, nil)
 	vk.FreeMemory(logical_device, buffer.memory, nil)
 
-	log.log("Vulkan index buffer destroyed")
+	log("Vulkan index buffer destroyed")
 }
 
-@(private)
-create_buffer :: proc(
+@(private = "file")
+buffer_create :: proc(
 	logical_device: vk.Device,
 	physical_device: vk.PhysicalDevice,
 	size: vk.DeviceSize,
@@ -221,7 +223,7 @@ create_buffer :: proc(
 
 	if result := vk.CreateBuffer(logical_device, &buffer_info, nil, &_buffer);
 	   result != .SUCCESS {
-		log.log_fatal_with_vk_result("Failed to create buffer", result)
+		log_fatal_with_vk_result("Failed to create buffer", result)
 	}
 
 	memory_requirements := vk.MemoryRequirements{}
@@ -234,7 +236,7 @@ create_buffer :: proc(
 	allocate_info := vk.MemoryAllocateInfo {
 		sType           = .MEMORY_ALLOCATE_INFO,
 		allocationSize  = memory_requirements.size,
-		memoryTypeIndex = find_memory_type(
+		memoryTypeIndex = buffer_find_memory_type(
 			physical_device,
 			memory_requirements.memoryTypeBits,
 			properties,
@@ -247,10 +249,7 @@ create_buffer :: proc(
 		nil,
 		&_buffer_memory,
 	); result != .SUCCESS {
-		log.log_fatal_with_vk_result(
-			"Failed to allocate buffer memory",
-			result,
-		)
+		log_fatal_with_vk_result("Failed to allocate buffer memory", result)
 	}
 
 	vk.BindBufferMemory(logical_device, _buffer, _buffer_memory, 0)
@@ -258,8 +257,8 @@ create_buffer :: proc(
 	return _buffer, _buffer_memory
 }
 
-@(private)
-copy_buffer :: proc(
+@(private = "file")
+buffer_copy :: proc(
 	src_buffer: vk.Buffer,
 	dst_buffer: vk.Buffer,
 	size: vk.DeviceSize,
@@ -280,10 +279,7 @@ copy_buffer :: proc(
 		&allocate_info,
 		&command_buffer,
 	); result != .SUCCESS {
-		log.log_fatal_with_vk_result(
-			"Failed to allocate command buffer",
-			result,
-		)
+		log_fatal_with_vk_result("Failed to allocate command buffer", result)
 	}
 
 	begin_info := vk.CommandBufferBeginInfo {
@@ -293,7 +289,7 @@ copy_buffer :: proc(
 
 	if result := vk.BeginCommandBuffer(command_buffer, &begin_info);
 	   result != .SUCCESS {
-		log.log_fatal_with_vk_result(
+		log_fatal_with_vk_result(
 			"Failed to begin recording command buffer",
 			result,
 		)
@@ -316,7 +312,7 @@ copy_buffer :: proc(
 
 	if result := vk.QueueSubmit(graphics_queue, 1, &submit_info, 0);
 	   result != .SUCCESS {
-		log.log_fatal_with_vk_result("Failed to submit copy command", result)
+		log_fatal_with_vk_result("Failed to submit copy command", result)
 	}
 
 	vk.QueueWaitIdle(graphics_queue)
@@ -325,7 +321,7 @@ copy_buffer :: proc(
 }
 
 @(private)
-find_memory_type :: proc(
+buffer_find_memory_type :: proc(
 	physical_device: vk.PhysicalDevice,
 	type_filter: u32,
 	properties: vk.MemoryPropertyFlags,
@@ -341,7 +337,7 @@ find_memory_type :: proc(
 		}
 	}
 
-	log.log_fatal("Failed to find suitable memory type")
+	log_fatal("Failed to find suitable memory type")
 
 	return 0
 }

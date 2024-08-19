@@ -1,15 +1,13 @@
-package render_pass
+package renderer
 
-import "../log"
-import "../swapchain"
 import vk "vendor:vulkan"
 
 RenderPass :: struct {
 	render_pass: vk.RenderPass,
 }
 
-create_render_pass :: proc(
-	swap_chain: swapchain.SwapChain,
+render_pass_create :: proc(
+	swap_chain: SwapChain,
 	device: vk.Device,
 ) -> RenderPass {
 	render_pass := RenderPass{}
@@ -43,26 +41,23 @@ create_render_pass :: proc(
 		nil,
 		&render_pass.render_pass,
 	); result != .SUCCESS {
-		log.log_fatal_with_vk_result(
-			"Failed to create Vulkan render pass",
-			result,
-		)
+		log_fatal_with_vk_result("Failed to create Vulkan render pass", result)
 	}
 
-	log.log("Vulkan render pass created")
+	log("Vulkan render pass created")
 
 	return render_pass
 }
 
-destroy_render_pass :: proc(device: vk.Device, render_pass: RenderPass) {
+render_pass_destroy :: proc(device: vk.Device, render_pass: RenderPass) {
 	vk.DestroyRenderPass(device, render_pass.render_pass, nil)
 
-	log.log("Vulkan render pass destroyed")
+	log("Vulkan render pass destroyed")
 }
 
-@(private)
+@(private = "file")
 create_color_attachment :: proc(
-	swap_chain: swapchain.SwapChain,
+	swap_chain: SwapChain,
 ) -> vk.AttachmentDescription {
 	return vk.AttachmentDescription {
 		format = swap_chain.format.format,
@@ -76,7 +71,7 @@ create_color_attachment :: proc(
 	}
 }
 
-@(private)
+@(private = "file")
 create_color_attachment_ref :: proc(
 	attachment: u32,
 ) -> vk.AttachmentReference {
@@ -86,7 +81,7 @@ create_color_attachment_ref :: proc(
 	}
 }
 
-@(private)
+@(private = "file")
 create_subpass :: proc(
 	color_attachment_ref: ^vk.AttachmentReference,
 ) -> vk.SubpassDescription {
