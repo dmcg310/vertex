@@ -40,24 +40,28 @@ device_create :: proc() -> Device {
 
 device_pick_physical :: proc(
 	device: ^Device,
-	instance: vk.Instance,
-	surface: vk.SurfaceKHR,
+	instance: Instance,
+	surface: Surface,
 ) {
 	device.physical_device = nil
 
 	device_count: u32 = 0
-	vk.EnumeratePhysicalDevices(instance, &device_count, nil)
+	vk.EnumeratePhysicalDevices(instance.instance, &device_count, nil)
 
 	if device_count == 0 {
 		log_fatal("Failed to find GPUs with Vulkan support")
 	}
 
 	devices := make([]vk.PhysicalDevice, device_count, context.temp_allocator)
-	vk.EnumeratePhysicalDevices(instance, &device_count, raw_data(devices))
+	vk.EnumeratePhysicalDevices(
+		instance.instance,
+		&device_count,
+		raw_data(devices),
+	)
 
 	highest_score := 0
 	for _device in devices {
-		score := device_is_suitable(_device, surface)
+		score := device_is_suitable(_device, surface.surface)
 		if score > highest_score {
 			device.physical_device = _device
 			highest_score = score
@@ -173,9 +177,9 @@ device_surface_destroy :: proc(
 	window_destroy_surface(surface.surface, instance.instance, window)
 }
 
-device_logical_destroy :: proc(device: Device) {
-	if device.logical_device != nil {
-		vk.DestroyDevice(device.logical_device, nil)
+device_logical_destroy :: proc(device: vk.Device) {
+	if device != nil {
+		vk.DestroyDevice(device, nil)
 	}
 
 	log("Vulkan logical device destroyed")
@@ -241,6 +245,10 @@ device_find_queue_families :: proc(
 	}
 
 	return indices
+}
+
+device_wait_idle :: proc(device: vk.Device) {
+	vk.DeviceWaitIdle(device)
 }
 
 @(private = "file")

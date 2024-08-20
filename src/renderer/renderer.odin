@@ -1,9 +1,16 @@
 package renderer
 
+import "core:sync"
+
 import im "../../external/odin-imgui"
-import vk "vendor:vulkan"
 
 Renderer :: struct {
+	resources:     RendererResources,
+	state:         RendererState,
+	configuration: RendererConfiguration,
+}
+
+RendererResources :: struct {
 	window:              Window,
 	instance:            Instance,
 	device:              Device,
@@ -17,27 +24,43 @@ Renderer :: struct {
 	command_buffers:     CommandBuffers,
 	sync_objects:        SyncObject,
 	imgui:               ImGuiState,
-	current_frame:       u32,
-	image_index:         u32,
 }
 
-RenderContext :: struct {
-	image_index:         u32,
-	logical_device:      vk.Device,
-	graphics_queue:      vk.Queue,
-	present_queue:       vk.Queue,
-	swap_chain:          SwapChain,
-	command_buffer:      vk.CommandBuffer,
-	vertex_buffer:       VertexBuffer,
-	index_buffer:        IndexBuffer,
-	fence:               vk.Fence,
-	available_semaphore: vk.Semaphore,
-	finished_semaphore:  vk.Semaphore,
-	framebuffer_manager: FramebufferManager,
-	pipeline:            GraphicsPipeline,
+RendererState :: struct {
+	current_frame:  u32,
+	image_index:    u32,
+	is_initialized: bool,
+	mutex:          sync.Mutex,
 }
 
-renderer_init :: proc(renderer: ^Renderer, width, height: i32, title: string) {
+RendererConfiguration :: struct {
+	width:                     i32,
+	height:                    i32,
+	title:                     string,
+	validation_layers_enabled: bool,
+}
+
+renderer_init :: proc(
+	renderer: ^Renderer,
+	config: RendererConfiguration,
+) -> bool {
+	renderer.configuration = config
+	if ok := renderer_resources_init(&renderer.resources, config); ok {
+		renderer.state.is_initialized = true
+		log("Renderer initialization successful")
+
+		return true
+	}
+
+	log("Renderer initialization failed", "ERROR")
+
+	return false
+}
+
+renderer_resources_init :: proc(
+	resources: ^RendererResources,
+	config: RendererConfiguration,
+) -> bool {
 	vertices := []Vertex {
 		{{-0.5, -0.5}, {1.0, 0.0, 0.0}},
 		{{0.5, -0.5}, {0.0, 1.0, 0.0}},
@@ -46,253 +69,205 @@ renderer_init :: proc(renderer: ^Renderer, width, height: i32, title: string) {
 	}
 	indices := []u32{0, 1, 2, 2, 3, 0}
 
-	renderer.current_frame = 0
-	renderer.window = window_create(width, height, title)
-	renderer.instance = instance_create(true)
-	renderer.device = device_create()
-	renderer.surface = device_surface_create(
-		renderer.instance,
-		&renderer.window,
+	resources.window = window_create(config.width, config.height, config.title)
+	resources.instance = instance_create(config.validation_layers_enabled)
+	resources.device = device_create()
+	resources.surface = device_surface_create(
+		resources.instance,
+		&resources.window,
 	)
 	device_pick_physical(
-		&renderer.device,
-		renderer.instance.instance,
-		renderer.surface.surface,
+		&resources.device,
+		resources.instance,
+		resources.surface,
 	)
 	device_logical_create(
-		&renderer.device,
-		renderer.instance,
-		renderer.surface,
+		&resources.device,
+		resources.instance,
+		resources.surface,
 	)
-	renderer.swap_chain = swap_chain_create(
-		renderer.device.logical_device,
-		renderer.device.physical_device,
-		renderer.surface.surface,
-		&renderer.window,
+	resources.swap_chain = swap_chain_create(
+		resources.device,
+		resources.surface,
+		&resources.window,
 	)
-	renderer.pipeline = pipeline_create(
-		renderer.swap_chain,
-		renderer.device.logical_device,
+	resources.pipeline = pipeline_create(
+		resources.swap_chain,
+		resources.device.logical_device,
 	)
-	renderer.framebuffer_manager = framebuffer_manager_create(
-		renderer.swap_chain,
-		renderer.pipeline.render_pass,
+	resources.framebuffer_manager = framebuffer_manager_create(
+		resources.swap_chain,
+		resources.pipeline.render_pass,
 	)
-	for &image_view in renderer.framebuffer_manager.swap_chain.image_views {
-		framebuffer_push(&renderer.framebuffer_manager, &image_view)
-	}
-	renderer.command_pool = command_pool_create(
-		renderer.device.logical_device,
-		renderer.swap_chain,
+	resources.command_pool = command_pool_create(
+		resources.device.logical_device,
+		resources.swap_chain,
 	)
-	renderer.vertex_buffer = buffer_vertex_create(
-		renderer.device.logical_device,
-		renderer.device.physical_device,
+	resources.vertex_buffer = buffer_vertex_create(
+		resources.device,
 		vertices,
-		renderer.command_pool.pool,
-		renderer.device.graphics_queue,
+		resources.command_pool,
 	)
-	renderer.index_buffer = buffer_index_create(
-		renderer.device.logical_device,
-		renderer.device.physical_device,
+	resources.index_buffer = buffer_index_create(
+		resources.device,
 		indices,
-		renderer.command_pool.pool,
-		renderer.device.graphics_queue,
+		resources.command_pool,
 	)
-	renderer.command_buffers = command_buffers_create(
-		renderer.device.logical_device,
-		renderer.command_pool,
+	resources.command_buffers = command_buffers_create(
+		resources.device.logical_device,
+		resources.command_pool,
 	)
-	renderer.sync_objects = sync_objects_create(renderer.device.logical_device)
-	renderer.imgui = imgui_init(
-		renderer.window.handle,
-		renderer.pipeline.render_pass.render_pass,
-		renderer.device.logical_device,
-		renderer.device.physical_device,
-		renderer.instance.instance,
-		renderer.device.graphics_queue,
-		renderer.device.graphics_family_index,
-		u32(len(renderer.swap_chain.images)),
-		renderer.swap_chain.format.format,
-		renderer.command_pool.pool,
+	resources.sync_objects = sync_objects_create(
+		resources.device.logical_device,
+	)
+	resources.imgui = imgui_init(
+		resources.window.handle,
+		resources.pipeline.render_pass.render_pass,
+		resources.device.logical_device,
+		resources.device.physical_device,
+		resources.instance.instance,
+		resources.device.graphics_queue,
+		resources.device.graphics_family_index,
+		u32(len(resources.swap_chain.images)),
+		resources.swap_chain.format.format,
+		resources.command_pool.pool,
 	)
 
-	device_print_properties(renderer.device.physical_device)
-
-	log("Renderer initialized")
+	return true
 }
 
-render :: proc(renderer: ^Renderer) {
+render :: proc(renderer: ^Renderer) -> bool {
+	sync.mutex_lock(&renderer.state.mutex)
+	defer sync.mutex_unlock(&renderer.state.mutex)
+
+	if !renderer.state.is_initialized {
+		log("Renderer is not initialized", "ERROR")
+
+		return false
+	}
+
 	if is_framebuffer_resized {
-		is_framebuffer_resized = false
-		recreate_swap_chain(renderer)
+		swap_chain_recreate(renderer)
 	}
 
-	if !sync_wait(
-		renderer.device.logical_device,
-		&renderer.sync_objects.in_flight_fences[renderer.current_frame],
-	) {
-		recreate_swap_chain(renderer)
+	if !frame_prepare(renderer) do return false
+	if !frame_render(renderer) do return false
+	if !frame_present(renderer) do return false
+
+	renderer.state.current_frame =
+		(renderer.state.current_frame + 1) % MAX_FRAMES_IN_FLIGHT
+
+	return true
+}
+
+frame_prepare :: proc(renderer: ^Renderer) -> bool {
+	device := renderer.resources.device.logical_device
+	sync_objects := renderer.resources.sync_objects
+	fence := sync_objects.in_flight_fences[renderer.state.current_frame]
+	semaphore :=
+		sync_objects.image_available_semaphores[renderer.state.current_frame]
+	swap_chain := renderer.resources.swap_chain
+
+	if !sync_wait(device, &fence) {
+		swap_chain_recreate(renderer)
+		return false
 	}
 
-	image_index, ok := swap_chain_get_next_image(
-		renderer.device.logical_device,
-		renderer.swap_chain.swap_chain,
-		renderer.sync_objects.image_available_semaphores[renderer.current_frame],
-	)
+	image_index, ok := swap_chain_get_next_image(device, swap_chain, semaphore)
 	if !ok {
-		recreate_swap_chain(renderer)
+		swap_chain_recreate(renderer)
+		return false
 	}
-	renderer.image_index = image_index
 
-	ctx := get_render_context(renderer)
+	renderer.state.image_index = image_index
+
+	sync_reset_fence(device, &fence)
+
+	return true
+}
+
+frame_render :: proc(renderer: ^Renderer) -> bool {
+	device := renderer.resources.device.logical_device
+	current_frame := renderer.state.current_frame
+	command_buffer := renderer.resources.command_buffers.buffers[current_frame]
+	sync_objects := renderer.resources.sync_objects
+
+	command_buffer_reset(command_buffer)
 
 	imgui_new_frame()
-
 	im.ShowDemoWindow()
 
-	sync_reset_fence(ctx.logical_device, &ctx.fence)
-	command_buffer_reset(ctx.command_buffer)
-
-	if !command_buffer_record(
-		ctx.command_buffer,
-		ctx.framebuffer_manager,
-		ctx.swap_chain,
-		ctx.pipeline,
-		ctx.vertex_buffer,
-		ctx.index_buffer,
+	record_ok := command_buffer_record(
+		command_buffer,
+		renderer.resources.framebuffer_manager,
+		renderer.resources.swap_chain,
+		renderer.resources.pipeline,
+		renderer.resources.vertex_buffer,
+		renderer.resources.index_buffer,
 		{.ONE_TIME_SUBMIT},
-		ctx.image_index,
-	) {
-		return
-	}
+		renderer.state.image_index,
+	)
+	if !record_ok do return false
 
-	if !command_buffer_submit(
-		ctx.logical_device,
-		ctx.graphics_queue,
-		&ctx.command_buffer,
-		&ctx.available_semaphore,
-		&ctx.finished_semaphore,
-		ctx.fence,
-	) {
-		return
-	}
+	submit_ok := command_buffer_submit(
+		device,
+		renderer.resources.device.graphics_queue,
+		&command_buffer,
+		&sync_objects.image_available_semaphores[current_frame],
+		&sync_objects.render_finished_semaphores[current_frame],
+		sync_objects.in_flight_fences[current_frame],
+	)
+	if !submit_ok do return false
 
-	if !swap_chain_present(
-		ctx.present_queue,
-		&ctx.swap_chain,
-		&ctx.image_index,
-		&ctx.finished_semaphore,
-	) {
-		return
-	}
+	return true
+}
 
-	renderer.current_frame =
-		(renderer.current_frame + 1) % MAX_FRAMES_IN_FLIGHT
+
+frame_present :: proc(renderer: ^Renderer) -> bool {
+	sync_objects := renderer.resources.sync_objects
+	current_frame := renderer.state.current_frame
+
+	return swap_chain_present(
+		renderer.resources.device.present_queue,
+		&renderer.resources.swap_chain,
+		&renderer.state.image_index,
+		&sync_objects.render_finished_semaphores[current_frame],
+	)
 }
 
 renderer_shutdown :: proc(renderer: ^Renderer) {
-	vk.DeviceWaitIdle(renderer.device.logical_device)
+	sync.mutex_lock(&renderer.state.mutex)
+	defer sync.mutex_unlock(&renderer.state.mutex)
 
-	imgui_destroy(renderer.device.logical_device, renderer.imgui)
-	sync_objects_destroy(
-		&renderer.sync_objects,
-		renderer.device.logical_device,
-	)
-	buffer_vertex_destroy(
-		&renderer.vertex_buffer,
-		renderer.device.logical_device,
-	)
-	buffer_index_destroy(
-		&renderer.index_buffer,
-		renderer.device.logical_device,
-	)
-	command_pool_destroy(
-		&renderer.command_pool,
-		renderer.device.logical_device,
-	)
-	framebuffer_manager_destroy(&renderer.framebuffer_manager)
-	pipeline_destroy(renderer.device.logical_device, renderer.pipeline)
-	swap_chain_destroy(renderer.device.logical_device, renderer.swap_chain)
-	device_logical_destroy(renderer.device)
-	device_surface_destroy(
-		renderer.surface,
-		renderer.instance,
-		&renderer.window,
-	)
-	instance_destroy(renderer.instance)
-	window_destroy(renderer.window)
+	if !renderer.state.is_initialized do return
+
+	device_wait_idle(renderer.resources.device.logical_device)
+	resources_destroy(&renderer.resources)
+
+	renderer.state.is_initialized = false
 
 	log("Renderer shutdown")
 }
 
-@(private)
-get_render_context :: proc(renderer: ^Renderer) -> RenderContext {
-	return RenderContext {
-		logical_device = renderer.device.logical_device,
-		graphics_queue = renderer.device.graphics_queue,
-		present_queue = renderer.device.present_queue,
-		swap_chain = renderer.swap_chain,
-		command_buffer = renderer.command_buffers.buffers[renderer.current_frame],
-		vertex_buffer = renderer.vertex_buffer,
-		index_buffer = renderer.index_buffer,
-		fence = renderer.sync_objects.in_flight_fences[renderer.current_frame],
-		available_semaphore = renderer.sync_objects.image_available_semaphores[renderer.current_frame],
-		finished_semaphore = renderer.sync_objects.render_finished_semaphores[renderer.current_frame],
-		framebuffer_manager = renderer.framebuffer_manager,
-		pipeline = renderer.pipeline,
-		image_index = renderer.image_index,
-	}
-}
+resources_destroy :: proc(resources: ^RendererResources) {
+	device := resources.device.logical_device
 
-/* 
-* We have to define these next two procedures here because of 
-* 	cyclic dependencies in swapchain and framebuffer
-*/
+	device_wait_idle(device)
 
-@(private)
-recreate_swap_chain :: proc(renderer: ^Renderer) {
-	width, height: i32 = 0, 0
-	for width == 0 || height == 0 {
-		width, height = window_get_framebuffer_size(renderer.window)
-		window_wait_events()
-	}
-
-	vk.DeviceWaitIdle(renderer.device.logical_device)
-
-	recreation_cleanup(renderer)
-
-	renderer.swap_chain = swap_chain_create(
-		renderer.device.logical_device,
-		renderer.device.physical_device,
-		renderer.surface.surface,
-		&renderer.window,
+	imgui_destroy(device, resources.imgui)
+	sync_objects_destroy(&resources.sync_objects, device)
+	buffer_vertex_destroy(&resources.vertex_buffer, device)
+	buffer_index_destroy(&resources.index_buffer, device)
+	command_pool_destroy(&resources.command_pool, device)
+	framebuffer_manager_destroy(&resources.framebuffer_manager)
+	pipeline_destroy(device, resources.pipeline)
+	swap_chain_destroy(device, resources.swap_chain)
+	device_logical_destroy(device)
+	device_surface_destroy(
+		resources.surface,
+		resources.instance,
+		&resources.window,
 	)
-
-	renderer.pipeline = pipeline_create(
-		renderer.swap_chain,
-		renderer.device.logical_device,
-	)
-
-	renderer.framebuffer_manager = framebuffer_manager_create(
-		renderer.swap_chain,
-		renderer.pipeline.render_pass,
-	)
-	for &image_view in renderer.framebuffer_manager.swap_chain.image_views {
-		framebuffer_push(&renderer.framebuffer_manager, &image_view)
-	}
-
-	renderer.command_buffers = command_buffers_create(
-		renderer.device.logical_device,
-		renderer.command_pool,
-	)
-
-	log("Swap chain recreated due to window resize")
-}
-
-@(private)
-recreation_cleanup :: proc(renderer: ^Renderer) {
-	framebuffer_manager_destroy(&renderer.framebuffer_manager)
-	swap_chain_destroy(renderer.device.logical_device, renderer.swap_chain)
-	pipeline_destroy(renderer.device.logical_device, renderer.pipeline)
+	instance_destroy(resources.instance)
+	window_destroy(resources.window)
 }

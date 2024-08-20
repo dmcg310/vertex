@@ -29,6 +29,10 @@ framebuffer_manager_create :: proc(
 		render_pass  = render_pass,
 	}
 
+	for &image_view in framebuffer_manager.swap_chain.image_views {
+		framebuffer_push(&framebuffer_manager, &image_view)
+	}
+
 	log("Framebuffer manager created")
 
 	return framebuffer_manager

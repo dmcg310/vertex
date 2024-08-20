@@ -210,7 +210,7 @@ vulkan_logger_close :: proc() {
 
 		os.write_string(
 			vulkan_logger.file,
-			fmt.tprintf("\n=== Summary ===n%s\n", summary),
+			fmt.tprintf("\n=== Summary ===\n%s\n", summary),
 		)
 
 		os.close(vulkan_logger.file)

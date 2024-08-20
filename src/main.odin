@@ -63,12 +63,6 @@ main :: proc() {
 }
 
 init_application :: proc() -> Application {
-	application := Application {
-		width  = 1600,
-		height = 900,
-		title  = "Vertex",
-	}
-
 	if err := renderer.logger_init(); err != os.ERROR_NONE {
 		fmt.eprintln("Failed to initialize logger", err)
 		os.exit(1)
@@ -79,18 +73,33 @@ init_application :: proc() -> Application {
 		os.exit(1)
 	}
 
-	renderer.renderer_init(
-		&application.renderer,
+	application := Application {
+		width  = 1920,
+		height = 1080,
+		title  = "Vertex",
+	}
+
+	validation_layers_enabled: bool
+	when ODIN_DEBUG {
+		validation_layers_enabled = true
+	} else {
+		validation_layers_enabled = false
+	}
+
+	config := renderer.RendererConfiguration {
 		application.width,
 		application.height,
 		application.title,
-	)
+		validation_layers_enabled,
+	}
+
+	renderer.renderer_init(&application.renderer, config)
 
 	return application
 }
 
 run_application :: proc(application: ^Application) {
-	for !renderer.window_is_closed(application.renderer.window) {
+	for !renderer.window_is_closed(application.renderer.resources.window) {
 		renderer.window_poll_events()
 		renderer.render(&application.renderer)
 	}
@@ -98,7 +107,6 @@ run_application :: proc(application: ^Application) {
 
 shutdown_application :: proc(application: ^Application) {
 	renderer.renderer_shutdown(&application.renderer)
-
 	renderer.logger_close()
 	renderer.vulkan_logger_close()
 

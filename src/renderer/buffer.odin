@@ -29,17 +29,15 @@ IndexBuffer :: struct {
 /* VERTEX BUFFER */
 
 buffer_vertex_create :: proc(
-	logical_device: vk.Device,
-	physical_device: vk.PhysicalDevice,
+	device: Device,
 	vertices: []Vertex,
-	command_pool: vk.CommandPool,
-	graphics_queue: vk.Queue,
+	command_pool: CommandPool,
 ) -> VertexBuffer {
 	buffer_size := vk.DeviceSize(size_of(Vertex) * len(vertices))
 
 	staging_buffer, staging_buffer_memory := buffer_create(
-		logical_device,
-		physical_device,
+		device.logical_device,
+		device.physical_device,
 		buffer_size,
 		{.TRANSFER_SRC},
 		{.HOST_VISIBLE, .HOST_COHERENT},
@@ -49,7 +47,7 @@ buffer_vertex_create :: proc(
 	data := slice.to_bytes(vertices)
 
 	if result := vk.MapMemory(
-		logical_device,
+		device.logical_device,
 		staging_buffer_memory,
 		0,
 		buffer_size,
@@ -60,11 +58,11 @@ buffer_vertex_create :: proc(
 	}
 
 	mem.copy(mapped_memory, raw_data(data), int(buffer_size))
-	vk.UnmapMemory(logical_device, staging_buffer_memory)
+	vk.UnmapMemory(device.logical_device, staging_buffer_memory)
 
 	vertex_buffer, vertex_buffer_memory := buffer_create(
-		logical_device,
-		physical_device,
+		device.logical_device,
+		device.physical_device,
 		buffer_size,
 		{.TRANSFER_DST, .VERTEX_BUFFER},
 		{.DEVICE_LOCAL},
@@ -74,13 +72,13 @@ buffer_vertex_create :: proc(
 		staging_buffer,
 		vertex_buffer,
 		buffer_size,
-		logical_device,
-		command_pool,
-		graphics_queue,
+		device.logical_device,
+		command_pool.pool,
+		device.graphics_queue,
 	)
 
-	vk.DestroyBuffer(logical_device, staging_buffer, nil)
-	vk.FreeMemory(logical_device, staging_buffer_memory, nil)
+	vk.DestroyBuffer(device.logical_device, staging_buffer, nil)
+	vk.FreeMemory(device.logical_device, staging_buffer_memory, nil)
 
 	log("Vulkan vertex buffer created")
 
@@ -131,17 +129,15 @@ buffer_vertex_destroy :: proc(
 /* INDEX BUFFER */
 
 buffer_index_create :: proc(
-	logical_device: vk.Device,
-	physical_device: vk.PhysicalDevice,
+	device: Device,
 	indices: []u32,
-	command_pool: vk.CommandPool,
-	graphics_queue: vk.Queue,
+	command_pool: CommandPool,
 ) -> IndexBuffer {
 	buffer_size := vk.DeviceSize(size_of(u32) * len(indices))
 
 	staging_buffer, staging_buffer_memory := buffer_create(
-		logical_device,
-		physical_device,
+		device.logical_device,
+		device.physical_device,
 		buffer_size,
 		{.TRANSFER_SRC},
 		{.HOST_VISIBLE, .HOST_COHERENT},
@@ -151,7 +147,7 @@ buffer_index_create :: proc(
 	data := slice.to_bytes(indices)
 
 	if result := vk.MapMemory(
-		logical_device,
+		device.logical_device,
 		staging_buffer_memory,
 		0,
 		buffer_size,
@@ -162,11 +158,11 @@ buffer_index_create :: proc(
 	}
 
 	mem.copy(mapped_memory, raw_data(data), int(buffer_size))
-	vk.UnmapMemory(logical_device, staging_buffer_memory)
+	vk.UnmapMemory(device.logical_device, staging_buffer_memory)
 
 	index_buffer, index_buffer_memory := buffer_create(
-		logical_device,
-		physical_device,
+		device.logical_device,
+		device.physical_device,
 		buffer_size,
 		{.TRANSFER_DST, .INDEX_BUFFER},
 		{.DEVICE_LOCAL},
@@ -176,13 +172,13 @@ buffer_index_create :: proc(
 		staging_buffer,
 		index_buffer,
 		buffer_size,
-		logical_device,
-		command_pool,
-		graphics_queue,
+		device.logical_device,
+		command_pool.pool,
+		device.graphics_queue,
 	)
 
-	vk.DestroyBuffer(logical_device, staging_buffer, nil)
-	vk.FreeMemory(logical_device, staging_buffer_memory, nil)
+	vk.DestroyBuffer(device.logical_device, staging_buffer, nil)
+	vk.FreeMemory(device.logical_device, staging_buffer_memory, nil)
 
 	log("Vulkan index buffer created")
 
