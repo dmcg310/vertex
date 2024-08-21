@@ -123,11 +123,8 @@ renderer_resources_init :: proc(
 	resources.imgui = imgui_init(
 		resources.window.handle,
 		resources.pipeline.render_pass,
-		resources.device.logical_device,
-		resources.device.physical_device,
+		resources.device,
 		resources.instance.instance,
-		resources.device.graphics_queue,
-		resources.device.graphics_family_index,
 		u32(len(resources.swap_chain.images)),
 		resources.swap_chain.format.format,
 		resources.command_pool.pool,

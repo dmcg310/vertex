@@ -16,11 +16,8 @@ ImGuiState :: struct {
 imgui_init :: proc(
 	window: glfw.WindowHandle,
 	render_pass: vk.RenderPass,
-	device: vk.Device,
-	physical_device: vk.PhysicalDevice,
+	device: Device,
 	instance: vk.Instance,
-	queue: vk.Queue,
-	queue_family: u32,
 	swap_chain_image_count: u32,
 	swap_chain_format: vk.Format,
 	command_pool: vk.CommandPool,
@@ -54,14 +51,14 @@ imgui_init :: proc(
 		rawptr(instance),
 	)
 
-	descriptor_pool := imgui_create_descriptor_pool(device)
+	descriptor_pool := imgui_create_descriptor_pool(device.logical_device)
 
 	init_info := imgui_impl_vulkan.InitInfo {
 		Instance              = instance,
-		PhysicalDevice        = physical_device,
-		Device                = device,
-		QueueFamily           = queue_family,
-		Queue                 = queue,
+		PhysicalDevice        = device.physical_device,
+		Device                = device.logical_device,
+		QueueFamily           = device.graphics_family_index,
+		Queue                 = device.graphics_queue,
 		PipelineCache         = {},
 		DescriptorPool        = descriptor_pool,
 		MinImageCount         = swap_chain_image_count,
@@ -73,14 +70,17 @@ imgui_init :: proc(
 	}
 	imgui_impl_vulkan.Init(&init_info, render_pass)
 
-	command_buffer := imgui_begin_single_time_commands(device, command_pool)
+	command_buffer := imgui_begin_single_time_commands(
+		device.logical_device,
+		command_pool,
+	)
 	imgui_impl_vulkan.CreateFontsTexture()
 
 	imgui_end_single_time_commands(
-		device,
+		device.logical_device,
 		command_pool,
 		&command_buffer,
-		queue,
+		device.graphics_queue,
 	)
 	imgui_impl_vulkan.DestroyFontsTexture()
 
