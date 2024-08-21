@@ -116,7 +116,7 @@ imgui_destroy :: proc(device: vk.Device, imgui_state: ImGuiState) {
 	log("ImGui context destroyed")
 }
 
-@(private)
+@(private = "file")
 imgui_begin_single_time_commands :: proc(
 	device: vk.Device,
 	pool: vk.CommandPool,
@@ -141,7 +141,7 @@ imgui_begin_single_time_commands :: proc(
 	return command_buffer
 }
 
-@(private)
+@(private = "file")
 imgui_end_single_time_commands :: proc(
 	device: vk.Device,
 	pool: vk.CommandPool,
@@ -162,7 +162,7 @@ imgui_end_single_time_commands :: proc(
 	vk.FreeCommandBuffers(device, pool, 1, command_buffer)
 }
 
-@(private)
+@(private = "file")
 imgui_create_descriptor_pool :: proc(device: vk.Device) -> vk.DescriptorPool {
 	pool_sizes := []vk.DescriptorPoolSize {
 		{type = .SAMPLER, descriptorCount = 1000},
@@ -202,7 +202,7 @@ imgui_create_descriptor_pool :: proc(device: vk.Device) -> vk.DescriptorPool {
 	return descriptor_pool
 }
 
-@(private)
+@(private = "file")
 check_vk_result :: proc "c" (result: vk.Result) {
 	if result != .SUCCESS {
 		context = runtime.default_context()

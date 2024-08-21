@@ -316,7 +316,7 @@ buffer_copy :: proc(
 	vk.FreeCommandBuffers(device, command_pool, 1, &command_buffer)
 }
 
-@(private)
+@(private = "file")
 buffer_find_memory_type :: proc(
 	physical_device: vk.PhysicalDevice,
 	type_filter: u32,
