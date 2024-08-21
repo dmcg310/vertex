@@ -122,7 +122,7 @@ renderer_resources_init :: proc(
 	)
 	resources.imgui = imgui_init(
 		resources.window.handle,
-		resources.pipeline.render_pass.render_pass,
+		resources.pipeline.render_pass,
 		resources.device.logical_device,
 		resources.device.physical_device,
 		resources.instance.instance,

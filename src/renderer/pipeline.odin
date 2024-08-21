@@ -10,7 +10,7 @@ DYNAMIC_STATES := []vk.DynamicState{.VIEWPORT, .SCISSOR}
 GraphicsPipeline :: struct {
 	pipeline:        vk.Pipeline,
 	pipeline_layout: vk.PipelineLayout,
-	render_pass:     RenderPass,
+	render_pass:     vk.RenderPass,
 }
 
 pipeline_create :: proc(
@@ -32,8 +32,6 @@ pipeline_create :: proc(
 		shader_stage_create({.FRAGMENT}, frag_shader_module),
 	}
 
-	pipeline.render_pass = render_pass_create(swap_chain, device)
-	pipeline.pipeline_layout = create_pipeline_layout(device)
 	vertex_input := create_vertex_input()
 	input_assembly := create_input_assembly(.TRIANGLE_LIST, false)
 	viewport_state := create_viewport_state()
@@ -42,18 +40,24 @@ pipeline_create :: proc(
 	color_blend_attachment := create_color_blend_attachment(true)
 	color_blending := create_color_blend_state(&color_blend_attachment)
 	dynamic_state := create_dynamic_state()
+	pipeline.pipeline_layout = create_pipeline_layout(device)
+	pipeline.render_pass = create_render_pass(swap_chain, device)
 
-	pipeline_info := create_pipeline_info(
-		shader_stages,
-		&vertex_input,
-		&input_assembly,
-		&viewport_state,
-		&rasterizer,
-		&multisampling,
-		&color_blending,
-		&dynamic_state,
-		pipeline,
-	)
+	pipeline_info := vk.GraphicsPipelineCreateInfo {
+		sType               = .GRAPHICS_PIPELINE_CREATE_INFO,
+		stageCount          = u32(len(shader_stages)),
+		pStages             = raw_data(shader_stages),
+		pVertexInputState   = &vertex_input,
+		pInputAssemblyState = &input_assembly,
+		pViewportState      = &viewport_state,
+		pRasterizationState = &rasterizer,
+		pMultisampleState   = &multisampling,
+		pColorBlendState    = &color_blending,
+		pDynamicState       = &dynamic_state,
+		layout              = pipeline.pipeline_layout,
+		renderPass          = pipeline.render_pass,
+		subpass             = 0,
+	}
 
 	if result := vk.CreateGraphicsPipelines(
 		device,
@@ -75,7 +79,7 @@ pipeline_create :: proc(
 }
 
 pipeline_destroy :: proc(device: vk.Device, pipeline: GraphicsPipeline) {
-	render_pass_destroy(device, pipeline.render_pass)
+	vk.DestroyRenderPass(device, pipeline.render_pass, nil)
 
 	vk.DestroyPipeline(device, pipeline.pipeline, nil)
 	vk.DestroyPipelineLayout(device, pipeline.pipeline_layout, nil)
@@ -84,63 +88,6 @@ pipeline_destroy :: proc(device: vk.Device, pipeline: GraphicsPipeline) {
 }
 
 @(private = "file")
-create_pipeline_info :: proc(
-	shader_stages: []vk.PipelineShaderStageCreateInfo,
-	vertex_input: ^vk.PipelineVertexInputStateCreateInfo,
-	input_assembly: ^vk.PipelineInputAssemblyStateCreateInfo,
-	viewport_state: ^vk.PipelineViewportStateCreateInfo,
-	rasterizer: ^vk.PipelineRasterizationStateCreateInfo,
-	multisampling: ^vk.PipelineMultisampleStateCreateInfo,
-	color_blending: ^vk.PipelineColorBlendStateCreateInfo,
-	dynamic_state: ^vk.PipelineDynamicStateCreateInfo,
-	pipeline: GraphicsPipeline,
-) -> vk.GraphicsPipelineCreateInfo {
-	return vk.GraphicsPipelineCreateInfo {
-		sType = .GRAPHICS_PIPELINE_CREATE_INFO,
-		stageCount = u32(len(shader_stages)),
-		pStages = raw_data(shader_stages),
-		pVertexInputState = vertex_input,
-		pInputAssemblyState = input_assembly,
-		pViewportState = viewport_state,
-		pRasterizationState = rasterizer,
-		pMultisampleState = multisampling,
-		pColorBlendState = color_blending,
-		pDynamicState = dynamic_state,
-		layout = pipeline.pipeline_layout,
-		renderPass = pipeline.render_pass.render_pass,
-		subpass = 0,
-	}
-}
-
-@(private)
-create_pipeline_layout :: proc(device: vk.Device) -> vk.PipelineLayout {
-	layout_info := vk.PipelineLayoutCreateInfo {
-		sType = .PIPELINE_LAYOUT_CREATE_INFO,
-	}
-
-	pipeline_layout := vk.PipelineLayout{}
-	if result := vk.CreatePipelineLayout(
-		device,
-		&layout_info,
-		nil,
-		&pipeline_layout,
-	); result != .SUCCESS {
-		log_fatal_with_vk_result("Failed to create pipeline layout", result)
-	}
-
-	return pipeline_layout
-}
-
-@(private)
-create_dynamic_state :: proc() -> vk.PipelineDynamicStateCreateInfo {
-	return vk.PipelineDynamicStateCreateInfo {
-		sType = .PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-		dynamicStateCount = 2,
-		pDynamicStates = &DYNAMIC_STATES[0],
-	}
-}
-
-@(private)
 create_viewport_state :: proc() -> vk.PipelineViewportStateCreateInfo {
 	return vk.PipelineViewportStateCreateInfo {
 		sType = .PIPELINE_VIEWPORT_STATE_CREATE_INFO,
@@ -149,7 +96,7 @@ create_viewport_state :: proc() -> vk.PipelineViewportStateCreateInfo {
 	}
 }
 
-@(private)
+@(private = "file")
 create_vertex_input :: proc() -> vk.PipelineVertexInputStateCreateInfo {
 	binding_description := new(
 		vk.VertexInputBindingDescription,
@@ -174,7 +121,7 @@ create_vertex_input :: proc() -> vk.PipelineVertexInputStateCreateInfo {
 	return res
 }
 
-@(private)
+@(private = "file")
 create_input_assembly :: proc(
 	topology: vk.PrimitiveTopology,
 	restart: b32,
@@ -186,7 +133,7 @@ create_input_assembly :: proc(
 	}
 }
 
-@(private)
+@(private = "file")
 create_rasterizer :: proc(
 	polygon_mode: vk.PolygonMode,
 	line_width: f32,
@@ -208,7 +155,7 @@ create_rasterizer :: proc(
 	}
 }
 
-@(private)
+@(private = "file")
 create_multisampling :: proc() -> vk.PipelineMultisampleStateCreateInfo {
 	return vk.PipelineMultisampleStateCreateInfo {
 		sType = .PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
@@ -217,7 +164,7 @@ create_multisampling :: proc() -> vk.PipelineMultisampleStateCreateInfo {
 	}
 }
 
-@(private)
+@(private = "file")
 create_color_blend_attachment :: proc(
 	enable_blend: b32,
 ) -> vk.PipelineColorBlendAttachmentState {
@@ -240,7 +187,7 @@ create_color_blend_attachment :: proc(
 	return color_blend
 }
 
-@(private)
+@(private = "file")
 create_color_blend_state :: proc(
 	color_blend_attachment: ^vk.PipelineColorBlendAttachmentState,
 ) -> vk.PipelineColorBlendStateCreateInfo {
@@ -250,4 +197,92 @@ create_color_blend_state :: proc(
 		attachmentCount = 1,
 		pAttachments = color_blend_attachment,
 	}
+}
+
+@(private = "file")
+create_dynamic_state :: proc() -> vk.PipelineDynamicStateCreateInfo {
+	return vk.PipelineDynamicStateCreateInfo {
+		sType = .PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+		dynamicStateCount = 2,
+		pDynamicStates = &DYNAMIC_STATES[0],
+	}
+}
+
+@(private = "file")
+create_pipeline_layout :: proc(device: vk.Device) -> vk.PipelineLayout {
+	layout_info := vk.PipelineLayoutCreateInfo {
+		sType = .PIPELINE_LAYOUT_CREATE_INFO,
+	}
+
+	pipeline_layout := vk.PipelineLayout{}
+	if result := vk.CreatePipelineLayout(
+		device,
+		&layout_info,
+		nil,
+		&pipeline_layout,
+	); result != .SUCCESS {
+		log_fatal_with_vk_result("Failed to create pipeline layout", result)
+	}
+
+	return pipeline_layout
+}
+
+@(private = "file")
+create_render_pass :: proc(
+	swap_chain: SwapChain,
+	device: vk.Device,
+) -> vk.RenderPass {
+	render_pass := vk.RenderPass{}
+
+	color_attachment := vk.AttachmentDescription {
+		format         = swap_chain.format.format,
+		samples        = {._1},
+		loadOp         = .CLEAR,
+		storeOp        = .STORE,
+		stencilLoadOp  = .DONT_CARE,
+		stencilStoreOp = .DONT_CARE,
+		initialLayout  = .UNDEFINED,
+		finalLayout    = .PRESENT_SRC_KHR,
+	}
+
+	color_attachment_ref := vk.AttachmentReference {
+		attachment = 0,
+		layout     = .COLOR_ATTACHMENT_OPTIMAL,
+	}
+
+	sub_pass := vk.SubpassDescription {
+		pipelineBindPoint    = .GRAPHICS,
+		colorAttachmentCount = 1,
+		pColorAttachments    = &color_attachment_ref,
+	}
+
+	dependency := vk.SubpassDependency {
+		srcSubpass    = vk.SUBPASS_EXTERNAL,
+		dstSubpass    = 0,
+		srcStageMask  = {.COLOR_ATTACHMENT_OUTPUT},
+		srcAccessMask = {},
+		dstStageMask  = {.COLOR_ATTACHMENT_OUTPUT},
+		dstAccessMask = {.COLOR_ATTACHMENT_WRITE},
+	}
+
+	render_pass_info := vk.RenderPassCreateInfo {
+		sType           = .RENDER_PASS_CREATE_INFO,
+		attachmentCount = 1,
+		pAttachments    = &color_attachment,
+		subpassCount    = 1,
+		pSubpasses      = &sub_pass,
+		dependencyCount = 1,
+		pDependencies   = &dependency,
+	}
+
+	if result := vk.CreateRenderPass(
+		device,
+		&render_pass_info,
+		nil,
+		&render_pass,
+	); result != .SUCCESS {
+		log_fatal_with_vk_result("Failed to create Vulkan render pass", result)
+	}
+
+	return render_pass
 }

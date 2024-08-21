@@ -12,12 +12,12 @@ Framebuffer :: struct {
 FramebufferManager :: struct {
 	framebuffers: [dynamic]Framebuffer,
 	swap_chain:   SwapChain,
-	render_pass:  RenderPass,
+	render_pass:  vk.RenderPass,
 }
 
 framebuffer_manager_create :: proc(
 	swap_chain: SwapChain,
-	render_pass: RenderPass,
+	render_pass: vk.RenderPass,
 ) -> FramebufferManager {
 	framebuffer_manager := FramebufferManager {
 		framebuffers = make(
@@ -64,7 +64,7 @@ framebuffer_push :: proc(
 
 	framebuffer_info := vk.FramebufferCreateInfo {
 		sType           = .FRAMEBUFFER_CREATE_INFO,
-		renderPass      = manager.render_pass.render_pass,
+		renderPass      = manager.render_pass,
 		attachmentCount = 1,
 		pAttachments    = attachment,
 		width           = framebuffer.width,

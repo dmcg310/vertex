@@ -100,7 +100,7 @@ command_buffer_record :: proc(
 
 	render_pass_info := vk.RenderPassBeginInfo {
 		sType = .RENDER_PASS_BEGIN_INFO,
-		renderPass = graphics_pipeline.render_pass.render_pass,
+		renderPass = graphics_pipeline.render_pass,
 		framebuffer = framebuffer_manager.framebuffers[image_idx].framebuffer,
 		renderArea = {offset = {x = 0, y = 0}, extent = swap_chain.extent_2d},
 		clearValueCount = len(clear_values),
