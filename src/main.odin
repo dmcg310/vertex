@@ -79,18 +79,11 @@ init_application :: proc() -> Application {
 		title  = "Vertex",
 	}
 
-	validation_layers_enabled: bool
-	when ODIN_DEBUG {
-		validation_layers_enabled = true
-	} else {
-		validation_layers_enabled = false
-	}
-
 	config := renderer.RendererConfiguration {
 		application.width,
 		application.height,
 		application.title,
-		validation_layers_enabled,
+		true,
 	}
 
 	renderer.renderer_init(&application.renderer, config)
