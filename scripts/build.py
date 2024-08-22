@@ -78,8 +78,12 @@ def build_imgui(force=False):
         os.chdir("../..")
 
 
-def build_odin_project(debug=True):
+def build_odin_project(debug=True, release=False, profile=False):
     print_script(f"Building Odin project in {'debug' if debug else 'release'} mode...")
+
+    if profile:
+        print_script(f"Profiling Odin project in {'debug' if debug else 'release'} mode...")
+
     os.makedirs("bin", exist_ok=True)
 
     if sys.platform.startswith("win"):
@@ -102,8 +106,23 @@ def build_odin_project(debug=True):
                 "-warnings-as-errors",
             ]
         )
-    else:
+
+        if profile:
+            build_cmd.extend(
+                [
+                    "-define:PROFILE=true",
+                ]
+            )
+
+    elif release:
         build_cmd.extend(["-o:speed", "-no-bounds-check", "-disable-assert"])
+
+        if profile:
+            build_cmd.extend(
+                [
+                    "-define:PROFILE=true",
+                ]
+            )
 
     print(f"{Fore.GREEN}{Style.BRIGHT}--- Odin Timings ---{Style.RESET_ALL}")
 
@@ -136,10 +155,22 @@ def main():
     os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     print_script("Build process started")
 
+    profile_mode = False
+    release_mode = False
+
     if "--debug" in sys.argv:
         debug_mode = True
+
+        if "--profile" in sys.argv:
+            profile_mode = True
+
     elif "--release" in sys.argv:
         debug_mode = False
+        release_mode = True
+
+        if "--profile" in sys.argv:
+            profile_mode = True
+
     else:
         print_error("Please specify either --debug or --release")
         sys.exit(1)
@@ -152,7 +183,7 @@ def main():
 
     compile_shaders()
 
-    binary_path = build_odin_project(debug=debug_mode)
+    binary_path = build_odin_project(debug=debug_mode, release=release_mode, profile=profile_mode)
     run_binary(binary_path)
 
     print_script("Build process and execution completed")

@@ -1,8 +1,13 @@
 package main
 
+import "base:runtime"
 import "core:fmt"
 import "core:mem"
 import "core:os"
+import "core:prof/spall"
+
+@(require)
+import "core:sync"
 
 import "renderer"
 
@@ -13,7 +18,27 @@ Application :: struct {
 	renderer: renderer.Renderer,
 }
 
+PROFILE :: #config(PROFILE, false)
+
+spall_ctx: spall.Context
+@(thread_local)
+spall_buffer: spall.Buffer
+
 main :: proc() {
+	when PROFILE {
+		spall_ctx = spall.context_create("bin/trace_vertex.spall")
+		defer spall.context_destroy(&spall_ctx)
+
+		buffer_backing := make([]u8, spall.BUFFER_DEFAULT_SIZE)
+		spall_buffer = spall.buffer_create(
+			buffer_backing,
+			u32(sync.current_thread_id()),
+		)
+		defer spall.buffer_destroy(&spall_ctx, &spall_buffer)
+
+		spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, #procedure)
+	}
+
 	when ODIN_DEBUG {
 		track: mem.Tracking_Allocator
 		mem.tracking_allocator_init(&track, context.allocator)
@@ -104,4 +129,20 @@ shutdown_application :: proc(application: ^Application) {
 	renderer.vulkan_logger_close()
 
 	free_all(context.temp_allocator)
+}
+
+@(instrumentation_enter)
+spall_enter :: proc "contextless" (
+	proc_address, call_site_return_address: rawptr,
+	loc: runtime.Source_Code_Location,
+) {
+	spall._buffer_begin(&spall_ctx, &spall_buffer, "", "", loc)
+}
+
+@(instrumentation_exit)
+spall_exit :: proc "contextless" (
+	proc_address, call_site_return_address: rawptr,
+	loc: runtime.Source_Code_Location,
+) {
+	spall._buffer_end(&spall_ctx, &spall_buffer)
 }
