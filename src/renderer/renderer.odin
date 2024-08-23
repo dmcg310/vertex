@@ -134,6 +134,8 @@ renderer_resources_init :: proc(
 		resources.command_pool.pool,
 	)
 
+	vma_print_stats(resources.vma_allocator)
+
 	return true
 }
 

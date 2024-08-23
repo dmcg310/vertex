@@ -1,5 +1,6 @@
 package renderer
 
+import "core:fmt"
 
 import ovma "../../external/odin-vma"
 import vk "vendor:vulkan"
@@ -144,4 +145,20 @@ vma_invalidate_allocation :: proc(
 	); result != .SUCCESS {
 		log_fatal_with_vk_result("Failed to invalidate allocation", result)
 	}
+}
+
+vma_print_stats :: proc(vma_allocator: VMAAllocator) {
+	stats: ovma.TotalStatistics
+	ovma.CalculateStatistics(vma_allocator.allocator, &stats)
+
+	bytes := stats.total.statistics.allocationBytes
+	total_memory := fmt.tprintf("%v B, %.2f KB", bytes, f64(bytes) / 1024)
+
+	log(fmt.tprintf("Total memory allocated: %s", total_memory))
+	log(
+		fmt.tprintf(
+			"Total allocations: %v",
+			stats.total.statistics.allocationCount,
+		),
+	)
 }
