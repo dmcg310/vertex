@@ -265,6 +265,7 @@ swap_chain_recreate :: proc(renderer: ^Renderer) {
 	renderer.resources.pipeline = pipeline_create(
 		renderer.resources.swap_chain,
 		renderer.resources.device.logical_device,
+		&renderer.resources.descriptor_set_layout,
 	)
 
 	renderer.resources.framebuffer_manager = framebuffer_manager_create(

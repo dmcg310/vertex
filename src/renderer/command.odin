@@ -180,8 +180,12 @@ command_buffer_submit :: proc(
 		pSignalSemaphores    = signal_semaphore,
 	}
 
-	if vk.QueueSubmit(queue, 1, &submit_info, fence) != .SUCCESS {
-		log_fatal("Failed to submit draw command buffer")
+	if result := vk.QueueSubmit(queue, 1, &submit_info, fence);
+	   result != .SUCCESS {
+		log_fatal_with_vk_result(
+			"Failed to submit draw command buffer",
+			result,
+		)
 		return false
 	}
 

@@ -16,6 +16,7 @@ GraphicsPipeline :: struct {
 pipeline_create :: proc(
 	swap_chain: SwapChain,
 	device: vk.Device,
+	descriptor_set_layout: ^DescriptorSetlayout,
 ) -> GraphicsPipeline {
 	pipeline := GraphicsPipeline{}
 
@@ -40,7 +41,10 @@ pipeline_create :: proc(
 	color_blend_attachment := create_color_blend_attachment(true)
 	color_blending := create_color_blend_state(&color_blend_attachment)
 	dynamic_state := create_dynamic_state()
-	pipeline.pipeline_layout = create_pipeline_layout(device)
+	pipeline.pipeline_layout = create_pipeline_layout(
+		device,
+		descriptor_set_layout,
+	)
 	pipeline.render_pass = create_render_pass(swap_chain, device)
 
 	pipeline_info := vk.GraphicsPipelineCreateInfo {
@@ -209,9 +213,14 @@ create_dynamic_state :: proc() -> vk.PipelineDynamicStateCreateInfo {
 }
 
 @(private = "file")
-create_pipeline_layout :: proc(device: vk.Device) -> vk.PipelineLayout {
+create_pipeline_layout :: proc(
+	device: vk.Device,
+	descriptor_set_layout: ^DescriptorSetlayout,
+) -> vk.PipelineLayout {
 	layout_info := vk.PipelineLayoutCreateInfo {
-		sType = .PIPELINE_LAYOUT_CREATE_INFO,
+		sType          = .PIPELINE_LAYOUT_CREATE_INFO,
+		setLayoutCount = 1,
+		pSetLayouts    = &descriptor_set_layout.layout,
 	}
 
 	pipeline_layout := vk.PipelineLayout{}

@@ -11,20 +11,21 @@ Renderer :: struct {
 }
 
 RendererResources :: struct {
-	window:              Window,
-	instance:            Instance,
-	device:              Device,
-	surface:             Surface,
-	swap_chain:          SwapChain,
-	pipeline:            GraphicsPipeline,
-	framebuffer_manager: FramebufferManager,
-	command_pool:        CommandPool,
-	vertex_buffer:       VertexBuffer,
-	index_buffer:        IndexBuffer,
-	command_buffers:     CommandBuffers,
-	sync_objects:        SyncObject,
-	imgui:               ImGuiState,
-	vma_allocator:       VMAAllocator,
+	window:                Window,
+	instance:              Instance,
+	device:                Device,
+	surface:               Surface,
+	vma_allocator:         VMAAllocator,
+	swap_chain:            SwapChain,
+	descriptor_set_layout: DescriptorSetlayout,
+	pipeline:              GraphicsPipeline,
+	framebuffer_manager:   FramebufferManager,
+	command_pool:          CommandPool,
+	vertex_buffer:         VertexBuffer,
+	index_buffer:          IndexBuffer,
+	command_buffers:       CommandBuffers,
+	sync_objects:          SyncObject,
+	imgui:                 ImGuiState,
 }
 
 RendererState :: struct {
@@ -93,9 +94,13 @@ renderer_resources_init :: proc(
 		resources.surface,
 		&resources.window,
 	)
+	resources.descriptor_set_layout = descriptor_set_layout_create(
+		resources.device.logical_device,
+	)
 	resources.pipeline = pipeline_create(
 		resources.swap_chain,
 		resources.device.logical_device,
+		&resources.descriptor_set_layout,
 	)
 	resources.framebuffer_manager = framebuffer_manager_create(
 		resources.swap_chain,
@@ -265,6 +270,7 @@ resources_destroy :: proc(resources: ^RendererResources) {
 	framebuffer_manager_destroy(&resources.framebuffer_manager)
 	pipeline_destroy(device, resources.pipeline)
 	swap_chain_destroy(device, resources.swap_chain)
+	descriptor_set_layout_destroy(device, resources.descriptor_set_layout)
 	vma_destroy(resources.vma_allocator)
 	device_logical_destroy(device)
 	device_surface_destroy(

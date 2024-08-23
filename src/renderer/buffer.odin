@@ -8,6 +8,7 @@ import vk "vendor:vulkan"
 
 Vec2 :: linalg.Vector2f32
 Vec3 :: linalg.Vector3f32
+Mat4 :: linalg.Matrix4x4f32
 
 Vertex :: struct {
 	pos:   Vec2,
@@ -24,6 +25,12 @@ IndexBuffer :: struct {
 	buffer:     vk.Buffer,
 	allocation: VMAAllocation,
 	indices:    []u32,
+}
+
+UniformBuffer :: struct {
+	model:      Mat4,
+	view:       Mat4,
+	projection: Mat4,
 }
 
 /* VERTEX BUFFER */
