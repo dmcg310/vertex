@@ -11,5 +11,5 @@ else
     GLSLC=glslc
 fi
 
-"$GLSLC" shaders/shader.vert -o shaders/vert.spv
-"$GLSLC" shaders/shader.frag -o shaders/frag.spv
+"$GLSLC" assets/shaders/shader.vert -o assets/shaders/vert.spv
+"$GLSLC" assets/shaders/shader.frag -o assets/shaders/frag.spv

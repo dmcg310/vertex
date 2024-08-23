@@ -2,8 +2,8 @@ package renderer
 
 import vk "vendor:vulkan"
 
-VERT_PATH :: "shaders/vert.spv"
-FRAG_PATH :: "shaders/frag.spv"
+VERT_PATH :: "assets/shaders/vert.spv"
+FRAG_PATH :: "assets/shaders/frag.spv"
 
 DYNAMIC_STATES := []vk.DynamicState{.VIEWPORT, .SCISSOR}
 

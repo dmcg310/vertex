@@ -13,6 +13,11 @@ VMAAllocation :: struct {
 	allocation: ovma.Allocation,
 }
 
+VMAImage :: struct {
+	image:      vk.Image,
+	allocation: VMAAllocation,
+}
+
 vma_init :: proc(device: Device, instance: Instance) -> VMAAllocator {
 	vma_allocator := VMAAllocator{}
 
@@ -89,6 +94,57 @@ vma_buffer_destroy :: proc(
 		vma_allocator.allocator,
 		buffer,
 		vma_allocation.allocation,
+	)
+}
+
+vma_image_create :: proc(
+	vma_allocator: VMAAllocator,
+	width: u32,
+	height: u32,
+	format: vk.Format,
+	tiling: vk.ImageTiling,
+	usage: vk.ImageUsageFlags,
+	memory_usage: ovma.MemoryUsage,
+) -> VMAImage {
+	vma_image := VMAImage{}
+
+	image_info := vk.ImageCreateInfo {
+		sType = .IMAGE_CREATE_INFO,
+		imageType = .D2,
+		extent = vk.Extent3D{width = width, height = height, depth = 1},
+		mipLevels = 1,
+		arrayLayers = 1,
+		format = format,
+		tiling = tiling,
+		initialLayout = .UNDEFINED,
+		usage = usage,
+		samples = {._1},
+		sharingMode = .EXCLUSIVE,
+	}
+
+	allocation_create_info := ovma.AllocationCreateInfo {
+		usage = memory_usage,
+	}
+
+	if result := ovma.CreateImage(
+		vma_allocator.allocator,
+		&image_info,
+		&allocation_create_info,
+		&vma_image.image,
+		&vma_image.allocation.allocation,
+		nil,
+	); result != .SUCCESS {
+		log_fatal_with_vk_result("Failed to create image", result)
+	}
+
+	return vma_image
+}
+
+vma_image_destroy :: proc(vma_allocator: VMAAllocator, vma_image: VMAImage) {
+	ovma.DestroyImage(
+		vma_allocator.allocator,
+		vma_image.image,
+		vma_image.allocation.allocation,
 	)
 }
 

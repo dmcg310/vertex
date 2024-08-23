@@ -21,6 +21,7 @@ RendererResources :: struct {
 	pipeline:              GraphicsPipeline,
 	framebuffer_manager:   FramebufferManager,
 	command_pool:          CommandPool,
+	texture_image:         TextureImage,
 	vertex_buffer:         VertexBuffer,
 	index_buffer:          IndexBuffer,
 	uniform_buffers:       UniformBuffers,
@@ -52,7 +53,7 @@ renderer_init :: proc(
 	renderer.configuration = config
 	if ok := renderer_resources_init(&renderer.resources, config); ok {
 		renderer.state.is_initialized = true
-		log("Renderer initialization successful")
+		log("Renderer initialized")
 
 		return true
 	}
@@ -112,6 +113,12 @@ renderer_resources_init :: proc(
 	resources.command_pool = command_pool_create(
 		resources.device.logical_device,
 		resources.swap_chain,
+	)
+	resources.texture_image = texture_image_create(
+		resources.device.logical_device,
+		resources.command_pool.pool,
+		resources.device.graphics_queue,
+		resources.vma_allocator,
 	)
 	resources.vertex_buffer = buffer_vertex_create(
 		resources.device,
@@ -283,6 +290,7 @@ renderer_shutdown :: proc(renderer: ^Renderer) {
 }
 
 resources_destroy :: proc(resources: ^RendererResources) {
+	log("Begin renderer shutdown")
 	device := resources.device.logical_device
 
 	device_wait_idle(device)
@@ -296,6 +304,7 @@ resources_destroy :: proc(resources: ^RendererResources) {
 	)
 	buffer_index_destroy(&resources.index_buffer, resources.vma_allocator)
 	buffer_vertex_destroy(&resources.vertex_buffer, resources.vma_allocator)
+	texture_image_destroy(resources.vma_allocator, resources.texture_image)
 	command_pool_destroy(&resources.command_pool, device)
 	framebuffer_manager_destroy(&resources.framebuffer_manager)
 	pipeline_destroy(device, resources.pipeline)
