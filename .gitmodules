@@ -1,3 +1,6 @@
 [submodule "external/odin-imgui"]
 	path = external/odin-imgui
 	url = https://gitlab.com/L-4/odin-imgui.git
+[submodule "external/odin-vma"]
+	path = external/odin-vma
+	url = https://github.com/DanielGavin/odin-vma.git

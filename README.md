@@ -5,6 +5,7 @@ Vertex is a Vulkan-based renderer.
 ## Features
 
 - Vulkan initialization and setup
+- GPU memory management using `VulkanMemoryAllocator` (VMA)
 - Shader compilation (vertex and fragment shaders)
 - Imgui integration
 - File and console based logging
@@ -31,7 +32,8 @@ Ensure that both Odin and Vulkan SDK are properly installed and their paths are 
 ├── shaders\        # GLSL shader files
 ├── bin\            # Output directory for compiled binary
 └── external\       # External dependencies
-    └── odin-imgui\ # ImGui bindings for Odin (submodule)
+    ├── odin-imgui\ # ImGui bindings for Odin (submodule)
+    └── odin-vma\   # VulkanMemoryAllocator bindings for Odin (submodule)
 ```
 
 ## Building and Running
@@ -102,6 +104,8 @@ This script will initialize submodules, compile the shaders, build the Odin proj
 - [ImGui](https://github.com/ocornut/imgui)
 - [Odin-ImGui](https://gitlab.com/L-4/odin-imgui)
 - [Spall](https://gravitymoth.com/spall/)
+- [VulkanMemoryAllocator](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/tree/master)
+- [Odin-VMA](https://github.com/DanielGavin/odin-vma)
 
 ## License
 

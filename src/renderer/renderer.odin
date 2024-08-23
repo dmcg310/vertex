@@ -24,6 +24,7 @@ RendererResources :: struct {
 	command_buffers:     CommandBuffers,
 	sync_objects:        SyncObject,
 	imgui:               ImGuiState,
+	vma_allocator:       VMAAllocator,
 }
 
 RendererState :: struct {
@@ -86,6 +87,7 @@ renderer_resources_init :: proc(
 		resources.instance,
 		resources.surface,
 	)
+	resources.vma_allocator = vma_init(resources.device, resources.instance)
 	resources.swap_chain = swap_chain_create(
 		resources.device,
 		resources.surface,
@@ -259,6 +261,7 @@ resources_destroy :: proc(resources: ^RendererResources) {
 	framebuffer_manager_destroy(&resources.framebuffer_manager)
 	pipeline_destroy(device, resources.pipeline)
 	swap_chain_destroy(device, resources.swap_chain)
+	vma_destroy(resources.vma_allocator)
 	device_logical_destroy(device)
 	device_surface_destroy(
 		resources.surface,
