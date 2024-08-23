@@ -23,6 +23,7 @@ RendererResources :: struct {
 	command_pool:          CommandPool,
 	vertex_buffer:         VertexBuffer,
 	index_buffer:          IndexBuffer,
+	uniform_buffers:       UniformBuffers,
 	command_buffers:       CommandBuffers,
 	sync_objects:          SyncObject,
 	imgui:                 ImGuiState,
@@ -122,6 +123,10 @@ renderer_resources_init :: proc(
 		resources.command_pool,
 		resources.vma_allocator,
 	)
+	resources.uniform_buffers = buffer_uniforms_create(
+		resources.device,
+		resources.vma_allocator,
+	)
 	resources.command_buffers = command_buffers_create(
 		resources.device.logical_device,
 		resources.command_pool,
@@ -205,6 +210,12 @@ frame_render :: proc(renderer: ^Renderer) -> bool {
 	imgui_new_frame()
 	im.ShowDemoWindow()
 
+	buffer_uniforms_update(
+		&renderer.resources.uniform_buffers,
+		current_frame,
+		renderer.resources.swap_chain.extent_2d,
+	)
+
 	record_ok := command_buffer_record(
 		command_buffer,
 		renderer.resources.framebuffer_manager,
@@ -266,6 +277,10 @@ resources_destroy :: proc(resources: ^RendererResources) {
 	sync_objects_destroy(&resources.sync_objects, device)
 	buffer_vertex_destroy(&resources.vertex_buffer, resources.vma_allocator)
 	buffer_index_destroy(&resources.index_buffer, resources.vma_allocator)
+	buffer_uniforms_destroy(
+		&resources.uniform_buffers,
+		resources.vma_allocator,
+	)
 	command_pool_destroy(&resources.command_pool, device)
 	framebuffer_manager_destroy(&resources.framebuffer_manager)
 	pipeline_destroy(device, resources.pipeline)
