@@ -7,6 +7,8 @@ Vertex is a Vulkan-based renderer.
 - Vulkan initialization and setup
 - Shader compilation (vertex and fragment shaders)
 - Imgui integration
+- File and console based logging
+- Profiling with Spall
 
 ## Prerequisites
 
@@ -76,15 +78,30 @@ Or
 python3 scripts/build.py --release
 ```
 
+5. Optionally, run the build script with the profile flag to enable profiling:
+
+```sh
+python3 scripts/build.py --debug --profile
+```
+
+Or
+
+```sh
+python3 scripts/build.py --release --profile
+```
+
+Note: this will output `trace_vertex.spall` into `bin/`. This can be viewed by opening [spall-web](https://gravitymoth.com/spall/spall-web.html), then opening the file in the icon at the top left.
+
 This script will initialize submodules, compile the shaders, build the Odin project in the specified mode (debug or release), and run the resulting binary.
 
 ## References
 
-- The Odin programming language
-- Vulkan
-- GLFW
-- ImGui
-- Odin-ImGui
+- [The Odin programming language](https://odin-lang.org/)
+- [Vulkan](https://www.vulkan.org/)
+- [GLFW](https://www.glfw.org/)
+- [ImGui](https://github.com/ocornut/imgui)
+- [Odin-ImGui](https://gitlab.com/L-4/odin-imgui)
+- [Spall](https://gravitymoth.com/spall/)
 
 ## License
 

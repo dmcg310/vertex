@@ -1,25 +1,18 @@
-package command
+package renderer
 
-import "../buffer"
-import "../framebuffer"
-import "../imgui_manager"
-import "../log"
-import "../pipeline"
-import "../shared"
-import "../swapchain"
 import vk "vendor:vulkan"
 
 CommandPool :: struct {
 	pool: vk.CommandPool,
 }
 
-CommandBuffer :: struct {
-	buffers: [shared.MAX_FRAMES_IN_FLIGHT]vk.CommandBuffer,
+CommandBuffers :: struct {
+	buffers: [MAX_FRAMES_IN_FLIGHT]vk.CommandBuffer,
 }
 
-create_command_pool :: proc(
+command_pool_create :: proc(
 	device: vk.Device,
-	swap_chain: swapchain.SwapChain,
+	swap_chain: SwapChain,
 ) -> CommandPool {
 	command_pool := CommandPool{}
 	pool_info := vk.CommandPoolCreateInfo {
@@ -36,30 +29,30 @@ create_command_pool :: proc(
 		nil,
 		&command_pool.pool,
 	); result != .SUCCESS {
-		log.log_fatal_with_vk_result("Failed to create command pool", result)
+		log_fatal_with_vk_result("Failed to create command pool", result)
 	}
 
-	log.log("Vulkan command pool created")
+	log("Vulkan command pool created")
 
 	return command_pool
 }
 
-destroy_command_pool :: proc(pool: ^CommandPool, device: vk.Device) {
+command_pool_destroy :: proc(pool: ^CommandPool, device: vk.Device) {
 	vk.DestroyCommandPool(device, pool.pool, nil)
 
-	log.log("Vulkan command pool destroyed")
+	log("Vulkan command pool destroyed")
 }
 
-create_command_buffers :: proc(
+command_buffers_create :: proc(
 	device: vk.Device,
 	pool: CommandPool,
-) -> CommandBuffer {
-	command_buffers := CommandBuffer{}
+) -> CommandBuffers {
+	command_buffers := CommandBuffers{}
 	alloc_info := vk.CommandBufferAllocateInfo {
 		sType              = .COMMAND_BUFFER_ALLOCATE_INFO,
 		commandPool        = pool.pool,
 		level              = .PRIMARY,
-		commandBufferCount = shared.MAX_FRAMES_IN_FLIGHT,
+		commandBufferCount = MAX_FRAMES_IN_FLIGHT,
 	}
 
 	if result := vk.AllocateCommandBuffers(
@@ -67,24 +60,21 @@ create_command_buffers :: proc(
 		&alloc_info,
 		&command_buffers.buffers[0],
 	); result != .SUCCESS {
-		log.log_fatal_with_vk_result(
-			"Failed to allocate command buffers",
-			result,
-		)
+		log_fatal_with_vk_result("Failed to allocate command buffers", result)
 	}
 
-	log.log("Vulkan command buffers allocated")
+	log("Vulkan command buffers allocated")
 
 	return command_buffers
 }
 
-record_command_buffer :: proc(
-	command_buffer: vk.CommandBuffer,
-	framebuffer_manager: framebuffer.FramebufferManager,
-	swap_chain: swapchain.SwapChain,
-	graphics_pipeline: pipeline.GraphicsPipeline,
-	vertex_buffer: buffer.VertexBuffer,
-	index_buffer: buffer.IndexBuffer,
+command_buffer_record :: proc(
+	command_buffers: vk.CommandBuffer,
+	framebuffer_manager: FramebufferManager,
+	swap_chain: SwapChain,
+	graphics_pipeline: GraphicsPipeline,
+	vertex_buffer: VertexBuffer,
+	index_buffer: IndexBuffer,
 	flags: vk.CommandBufferUsageFlags,
 	image_idx: u32,
 ) -> bool {
@@ -93,9 +83,9 @@ record_command_buffer :: proc(
 		flags = flags,
 	}
 
-	if result := vk.BeginCommandBuffer(command_buffer, &begin_info);
+	if result := vk.BeginCommandBuffer(command_buffers, &begin_info);
 	   result != .SUCCESS {
-		log.log_fatal_with_vk_result(
+		log_fatal_with_vk_result(
 			"Failed to begin recording command buffer",
 			result,
 		)
@@ -110,15 +100,15 @@ record_command_buffer :: proc(
 
 	render_pass_info := vk.RenderPassBeginInfo {
 		sType = .RENDER_PASS_BEGIN_INFO,
-		renderPass = graphics_pipeline._render_pass.render_pass,
+		renderPass = graphics_pipeline.render_pass,
 		framebuffer = framebuffer_manager.framebuffers[image_idx].framebuffer,
 		renderArea = {offset = {x = 0, y = 0}, extent = swap_chain.extent_2d},
 		clearValueCount = len(clear_values),
 		pClearValues = &clear_values[0],
 	}
 
-	vk.CmdBeginRenderPass(command_buffer, &render_pass_info, .INLINE)
-	vk.CmdBindPipeline(command_buffer, .GRAPHICS, graphics_pipeline.pipeline)
+	vk.CmdBeginRenderPass(command_buffers, &render_pass_info, .INLINE)
+	vk.CmdBindPipeline(command_buffers, .GRAPHICS, graphics_pipeline.pipeline)
 
 	viewport := vk.Viewport {
 		x        = 0.0,
@@ -128,27 +118,27 @@ record_command_buffer :: proc(
 		minDepth = 0.0,
 		maxDepth = 1.0,
 	}
-	vk.CmdSetViewport(command_buffer, 0, 1, &viewport)
+	vk.CmdSetViewport(command_buffers, 0, 1, &viewport)
 
 	scissor := vk.Rect2D {
 		offset = {0, 0},
 		extent = swap_chain.extent_2d,
 	}
-	vk.CmdSetScissor(command_buffer, 0, 1, &scissor)
+	vk.CmdSetScissor(command_buffers, 0, 1, &scissor)
 
 	offsets := []vk.DeviceSize{0}
 	vertex_buffers := []vk.Buffer{vertex_buffer.buffer}
 	vk.CmdBindVertexBuffers(
-		command_buffer,
+		command_buffers,
 		0,
 		1,
 		raw_data(vertex_buffers),
 		raw_data(offsets),
 	)
-	vk.CmdBindIndexBuffer(command_buffer, index_buffer.buffer, 0, .UINT32)
+	vk.CmdBindIndexBuffer(command_buffers, index_buffer.buffer, 0, .UINT32)
 
 	vk.CmdDrawIndexed(
-		command_buffer,
+		command_buffers,
 		u32(len(index_buffer.indices)),
 		1,
 		0,
@@ -156,12 +146,12 @@ record_command_buffer :: proc(
 		0,
 	)
 
-	imgui_manager.render_imgui(command_buffer)
+	imgui_render(command_buffers)
 
-	vk.CmdEndRenderPass(command_buffer)
+	vk.CmdEndRenderPass(command_buffers)
 
-	if result := vk.EndCommandBuffer(command_buffer); result != .SUCCESS {
-		log.log_fatal_with_vk_result("Failed to record command buffer", result)
+	if result := vk.EndCommandBuffer(command_buffers); result != .SUCCESS {
+		log_fatal_with_vk_result("Failed to record command buffer", result)
 
 		return false
 	}
@@ -169,7 +159,7 @@ record_command_buffer :: proc(
 	return true
 }
 
-submit_command_buffer :: proc(
+command_buffer_submit :: proc(
 	device: vk.Device,
 	queue: vk.Queue,
 	buffer: ^vk.CommandBuffer,
@@ -191,13 +181,13 @@ submit_command_buffer :: proc(
 	}
 
 	if vk.QueueSubmit(queue, 1, &submit_info, fence) != .SUCCESS {
-		log.log_fatal("Failed to submit draw command buffer")
+		log_fatal("Failed to submit draw command buffer")
 		return false
 	}
 
 	return true
 }
 
-reset_command_buffer :: proc(buffer: vk.CommandBuffer) {
+command_buffer_reset :: proc(buffer: vk.CommandBuffer) {
 	vk.ResetCommandBuffer(buffer, {})
 }

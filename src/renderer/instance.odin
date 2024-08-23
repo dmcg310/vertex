@@ -1,10 +1,11 @@
-package instance
+package renderer
 
-import "../log"
-import "../util"
 import "base:runtime"
 import "vendor:glfw"
+
 import vk "vendor:vulkan"
+
+import "../util"
 
 Instance :: struct {
 	instance:                  vk.Instance,
@@ -24,7 +25,7 @@ when ODIN_OS == .Windows {
 		context = runtime.default_context()
 		message := util.from_cstring(callback_data.pMessage)
 
-		log.log_vulkan(message, severity)
+		log_vulkan(message, severity)
 
 		return false
 	}
@@ -38,13 +39,13 @@ when ODIN_OS == .Windows {
 		context = runtime.default_context()
 		message := util.from_cstring(callback_data.pMessage)
 
-		log.log_vulkan(message, severity)
+		log_vulkan(message, severity)
 
 		return false
 	}
 }
 
-create_instance :: proc(enable_validation_layers: bool) -> Instance {
+instance_create :: proc(enable_validation_layers: bool) -> Instance {
 	vk.load_proc_addresses((rawptr)(glfw.GetInstanceProcAddress))
 
 	instance := Instance {
@@ -52,7 +53,7 @@ create_instance :: proc(enable_validation_layers: bool) -> Instance {
 	}
 
 	if enable_validation_layers && !check_validation_layer_support() {
-		log.log_fatal("Validation layers requested, but not available")
+		log_fatal("Validation layers requested, but not available")
 	}
 
 	app_info := vk.ApplicationInfo {
@@ -98,10 +99,7 @@ create_instance :: proc(enable_validation_layers: bool) -> Instance {
 
 	if result := vk.CreateInstance(&create_info, nil, &instance.instance);
 	   result != .SUCCESS {
-		log.log_fatal_with_vk_result(
-			"Failed to create Vulkan instance",
-			result,
-		)
+		log_fatal_with_vk_result("Failed to create Vulkan instance", result)
 	}
 
 	vk.load_proc_addresses(instance.instance)
@@ -110,12 +108,12 @@ create_instance :: proc(enable_validation_layers: bool) -> Instance {
 		setup_debug_messenger(&instance)
 	}
 
-	log.log("Vulkan instance created")
+	log("Vulkan instance created")
 
 	return instance
 }
 
-destroy_instance :: proc(instance: Instance) {
+instance_destroy :: proc(instance: Instance) {
 	if instance.validation_layers_enabled {
 		destroy_debug_utils_messenger_ext(
 			instance.instance,
@@ -128,10 +126,10 @@ destroy_instance :: proc(instance: Instance) {
 		vk.DestroyInstance(instance.instance, nil)
 	}
 
-	log.log("Vulkan instance destroyed")
+	log("Vulkan instance destroyed")
 }
 
-@(private)
+@(private = "file")
 check_validation_layer_support :: proc() -> bool {
 	layer_count: u32 = 0
 	vk.EnumerateInstanceLayerProperties(&layer_count, nil)
@@ -168,7 +166,7 @@ check_validation_layer_support :: proc() -> bool {
 	return true
 }
 
-@(private)
+@(private = "file")
 get_required_extensions :: proc(instance: Instance) -> []cstring {
 	glfw_extensions := glfw.GetRequiredInstanceExtensions()
 	glfw_extension_count := len(glfw_extensions)
@@ -188,7 +186,7 @@ get_required_extensions :: proc(instance: Instance) -> []cstring {
 	return new_extensions
 }
 
-@(private)
+@(private = "file")
 setup_debug_messenger :: proc(instance: ^Instance) {
 	if !instance.validation_layers_enabled {
 		return
@@ -203,14 +201,11 @@ setup_debug_messenger :: proc(instance: ^Instance) {
 		nil,
 		&instance.debug_messenger,
 	); result != .SUCCESS {
-		log.log_fatal_with_vk_result(
-			"Failed to set up debug messenger",
-			result,
-		)
+		log_fatal_with_vk_result("Failed to set up debug messenger", result)
 	}
 }
 
-@(private)
+@(private = "file")
 create_debug_utils_messenger_ext :: proc(
 	instance: vk.Instance,
 	create_info: ^vk.DebugUtilsMessengerCreateInfoEXT,
@@ -231,12 +226,12 @@ create_debug_utils_messenger_ext :: proc(
 
 	if func != nil {
 		return func(instance, create_info, allocator, messenger)
-	} else {
-		return .ERROR_EXTENSION_NOT_PRESENT
 	}
+
+	return .ERROR_EXTENSION_NOT_PRESENT
 }
 
-@(private)
+@(private = "file")
 populate_debug_messenger_create_info :: proc(
 	create_info: ^vk.DebugUtilsMessengerCreateInfoEXT,
 ) {
@@ -247,7 +242,7 @@ populate_debug_messenger_create_info :: proc(
 	create_info.pUserData = nil
 }
 
-@(private)
+@(private = "file")
 destroy_debug_utils_messenger_ext :: proc(
 	instance: vk.Instance,
 	debug_messenger: vk.DebugUtilsMessengerEXT,

@@ -1,7 +1,5 @@
-package window
+package renderer
 
-import "../log"
-import "../shared"
 import "../util"
 import "vendor:glfw"
 import vk "vendor:vulkan"
@@ -11,13 +9,13 @@ Window :: struct {
 	surface_created: bool,
 }
 
-framebuffer_resized: bool
+is_framebuffer_resized: bool
 
-init_window :: proc(width, height: i32, title: string) -> Window {
+window_create :: proc(width, height: i32, title: string) -> Window {
 	window := Window{}
 
 	if !glfw.Init() {
-		log.log_fatal("Failed to initialize GLFW")
+		log_fatal("Failed to initialize GLFW")
 	}
 
 	glfw.WindowHint(glfw.CLIENT_API, glfw.NO_API)
@@ -29,58 +27,55 @@ init_window :: proc(width, height: i32, title: string) -> Window {
 		nil,
 		nil,
 	); window.handle == nil {
-		log.log_fatal("Failed to create GLFW window")
+		log_fatal("Failed to create GLFW window")
 	}
 
-	glfw.SetFramebufferSizeCallback(
-		window.handle,
-		shared.framebuffer_size_callback,
-	)
+	glfw.SetFramebufferSizeCallback(window.handle, framebuffer_size_callback)
 	glfw.SetKeyCallback(window.handle, key_callback)
 
-	log.log("Window created")
+	log("Window created")
 
 	return window
 }
 
-get_framebuffer_size :: proc(window: Window) -> (i32, i32) {
+window_get_framebuffer_size :: proc(window: Window) -> (i32, i32) {
 	return glfw.GetFramebufferSize(window.handle)
 }
 
-is_window_closed :: proc(window: Window) -> bool {
+window_is_closed :: proc(window: Window) -> bool {
 	return bool(glfw.WindowShouldClose(window.handle))
 }
 
-poll_window_events :: proc() {
+window_poll_events :: proc() {
 	glfw.PollEvents()
 }
 
-wait_events :: proc() {
+window_wait_events :: proc() {
 	glfw.WaitEvents()
 }
 
-create_surface :: proc(
+window_create_surface :: proc(
 	instance: vk.Instance,
 	window: ^Window,
 ) -> vk.SurfaceKHR {
 	if window.surface_created {
-		log.log_fatal("Surface for this window already created")
+		log_fatal("Surface for this window already created")
 	}
 
 	surface: vk.SurfaceKHR
 	if err := glfw.CreateWindowSurface(instance, window.handle, nil, &surface);
 	   err != .SUCCESS {
-		log.log_fatal_with_vk_result("Failed to create window surface", err)
+		log_fatal_with_vk_result("Failed to create window surface", err)
 	}
 
-	log.log("Vulkan surface created")
+	log("Vulkan surface created")
 
 	window.surface_created = true
 
 	return surface
 }
 
-destroy_surface :: proc(
+window_destroy_surface :: proc(
 	surface: vk.SurfaceKHR,
 	instance: vk.Instance,
 	window: ^Window,
@@ -88,20 +83,27 @@ destroy_surface :: proc(
 	if window.surface_created {
 		vk.DestroySurfaceKHR(instance, surface, nil)
 
-		log.log("Vulkan surface destroyed")
+		log("Vulkan surface destroyed")
 
 		window.surface_created = false
 	}
 }
 
-destroy_window :: proc(window: Window) {
+window_destroy :: proc(window: Window) {
 	glfw.DestroyWindow(window.handle)
 	glfw.Terminate()
 
-	log.log("Window destroyed")
+	log("Window destroyed")
 }
 
-@(private)
+framebuffer_size_callback :: proc "c" (
+	window: glfw.WindowHandle,
+	width, height: i32,
+) {
+	is_framebuffer_resized = true
+}
+
+@(private = "file")
 key_callback :: proc "c" (
 	window: glfw.WindowHandle,
 	key, scancode, action, mods: i32,

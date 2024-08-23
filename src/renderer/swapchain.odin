@@ -1,9 +1,7 @@
-package swapchain
+package renderer
 
-import "../log"
-import "../shared"
-import "../window"
 import "core:math"
+
 import "vendor:glfw"
 import vk "vendor:vulkan"
 
@@ -20,19 +18,21 @@ SwapChain :: struct {
 	images:               []vk.Image,
 	image_views:          []vk.ImageView,
 	device:               vk.Device,
-	queue_family_indices: shared.QueueFamilyIndices,
+	queue_family_indices: QueueFamilyIndices,
 }
 
-create_swap_chain :: proc(
-	device: vk.Device,
-	physical_device: vk.PhysicalDevice,
-	surface: vk.SurfaceKHR,
-	window: ^window.Window,
+swap_chain_create :: proc(
+	device: Device,
+	surface: Surface,
+	window: ^Window,
 ) -> SwapChain {
 	swap_chain := SwapChain{}
 
-	swap_chain_support := query_swap_chain_support(physical_device, surface)
-	defer destroy_swap_chain_support_details(swap_chain_support)
+	swap_chain_support := swap_chain_query_support(
+		device.physical_device,
+		surface.surface,
+	)
+	defer swap_chain_support_details_destroy(swap_chain_support)
 
 	surface_format := choose_swap_surface_format(swap_chain_support.formats)
 	present_mode := choose_swap_present_mode(swap_chain_support.present_modes)
@@ -47,7 +47,7 @@ create_swap_chain :: proc(
 
 	create_info := vk.SwapchainCreateInfoKHR {
 		sType            = .SWAPCHAIN_CREATE_INFO_KHR,
-		surface          = surface,
+		surface          = surface.surface,
 		minImageCount    = image_count,
 		imageFormat      = surface_format.format,
 		imageColorSpace  = surface_format.colorSpace,
@@ -56,16 +56,19 @@ create_swap_chain :: proc(
 		imageUsage       = {.COLOR_ATTACHMENT},
 	}
 
-	indices := shared.find_queue_families(physical_device, surface)
+	indices := device_find_queue_families(
+		device.physical_device,
+		surface.surface,
+	)
 	queue_family_indices := []u32 {
-		u32(indices.data[shared.QueueFamily.Graphics]),
-		u32(indices.data[shared.QueueFamily.Present]),
+		u32(indices.data[QueueFamily.Graphics]),
+		u32(indices.data[QueueFamily.Present]),
 	}
 
 	swap_chain.queue_family_indices = indices
 
-	if indices.data[shared.QueueFamily.Graphics] !=
-	   indices.data[shared.QueueFamily.Present] {
+	if indices.data[QueueFamily.Graphics] !=
+	   indices.data[QueueFamily.Present] {
 		create_info.imageSharingMode = .CONCURRENT
 		create_info.queueFamilyIndexCount = 2
 		create_info.pQueueFamilyIndices = raw_data(queue_family_indices)
@@ -82,55 +85,60 @@ create_swap_chain :: proc(
 	create_info.oldSwapchain = vk.SwapchainKHR(0)
 
 	if result := vk.CreateSwapchainKHR(
-		device,
+		device.logical_device,
 		&create_info,
 		nil,
 		&swap_chain.swap_chain,
 	); result != .SUCCESS {
-		log.log_fatal_with_vk_result("Failed to create swap chain", result)
+		log_fatal_with_vk_result("Failed to create swap chain", result)
 	}
 
 	swap_chain.format = surface_format
 	swap_chain.extent_2d = extent_2d
 
-	vk.GetSwapchainImagesKHR(device, swap_chain.swap_chain, &image_count, nil)
+	vk.GetSwapchainImagesKHR(
+		device.logical_device,
+		swap_chain.swap_chain,
+		&image_count,
+		nil,
+	)
 
 	swap_chain.images = make([]vk.Image, image_count, context.temp_allocator)
 	vk.GetSwapchainImagesKHR(
-		device,
+		device.logical_device,
 		swap_chain.swap_chain,
 		&image_count,
 		raw_data(swap_chain.images),
 	)
 
 	swap_chain.image_views = []vk.ImageView{}
-	swap_chain.device = device
+	swap_chain.device = device.logical_device
 
-	log.log("Vulkan swap chain created")
+	log("Vulkan swap chain created")
 
-	create_image_views(&swap_chain, device)
+	create_image_views(&swap_chain, device.logical_device)
 
 	return swap_chain
 }
 
-destroy_swap_chain :: proc(device: vk.Device, swap_chain: SwapChain) {
+swap_chain_destroy :: proc(device: vk.Device, swap_chain: SwapChain) {
 	vk.DestroySwapchainKHR(device, swap_chain.swap_chain, nil)
 
 	for image_view in swap_chain.image_views {
 		vk.DestroyImageView(device, image_view, nil)
 	}
 
-	log.log("Vulkan swap chain destroyed")
+	log("Vulkan swap chain destroyed")
 }
 
-destroy_swap_chain_support_details :: proc(
+swap_chain_support_details_destroy :: proc(
 	swap_chain_support: SwapChainSupportDetails,
 ) {
 	delete(swap_chain_support.present_modes)
 	delete(swap_chain_support.formats)
 }
 
-query_swap_chain_support :: proc(
+swap_chain_query_support :: proc(
 	physical_device: vk.PhysicalDevice,
 	surface: vk.SurfaceKHR,
 ) -> SwapChainSupportDetails {
@@ -181,9 +189,9 @@ query_swap_chain_support :: proc(
 	return details
 }
 
-get_next_image :: proc(
+swap_chain_get_next_image :: proc(
 	device: vk.Device,
-	swap_chain: vk.SwapchainKHR,
+	swap_chain: SwapChain,
 	semaphore: vk.Semaphore,
 ) -> (
 	u32,
@@ -192,7 +200,7 @@ get_next_image :: proc(
 	image_index: u32
 	result := vk.AcquireNextImageKHR(
 		device,
-		swap_chain,
+		swap_chain.swap_chain,
 		~u64(0),
 		semaphore,
 		0,
@@ -202,13 +210,13 @@ get_next_image :: proc(
 	if result == .ERROR_OUT_OF_DATE_KHR {
 		return image_index, false
 	} else if result != .SUCCESS && result != .SUBOPTIMAL_KHR {
-		log.log_fatal("Failed to acquire swap chain image")
+		log_fatal("Failed to acquire swap chain image")
 	}
 
 	return image_index, true
 }
 
-present_image :: proc(
+swap_chain_present :: proc(
 	queue: vk.Queue,
 	swap_chain: ^SwapChain,
 	image_index: ^u32,
@@ -230,7 +238,49 @@ present_image :: proc(
 	return true
 }
 
-@(private)
+swap_chain_recreate :: proc(renderer: ^Renderer) {
+	log("Recreating swap chain due to framebuffer resize")
+
+	width, height: i32 = 0, 0
+	for width == 0 || height == 0 {
+		width, height = window_get_framebuffer_size(renderer.resources.window)
+		window_wait_events()
+	}
+
+	device_wait_idle(renderer.resources.device.logical_device)
+
+	swap_chain_cleanup(
+		&renderer.resources.framebuffer_manager,
+		renderer.resources.device.logical_device,
+		renderer.resources.swap_chain,
+		renderer.resources.pipeline,
+	)
+
+	renderer.resources.swap_chain = swap_chain_create(
+		renderer.resources.device,
+		renderer.resources.surface,
+		&renderer.resources.window,
+	)
+
+	renderer.resources.pipeline = pipeline_create(
+		renderer.resources.swap_chain,
+		renderer.resources.device.logical_device,
+	)
+
+	renderer.resources.framebuffer_manager = framebuffer_manager_create(
+		renderer.resources.swap_chain,
+		renderer.resources.pipeline.render_pass,
+	)
+
+	renderer.resources.command_buffers = command_buffers_create(
+		renderer.resources.device.logical_device,
+		renderer.resources.command_pool,
+	)
+
+	is_framebuffer_resized = false
+}
+
+@(private = "file")
 create_image_views :: proc(swap_chain: ^SwapChain, device: vk.Device) {
 	swap_chain.image_views = make(
 		[]vk.ImageView,
@@ -265,15 +315,12 @@ create_image_views :: proc(swap_chain: ^SwapChain, device: vk.Device) {
 			nil,
 			&swap_chain.image_views[i],
 		); result != .SUCCESS {
-			log.log_fatal_with_vk_result(
-				"Failed to create image views",
-				result,
-			)
+			log_fatal_with_vk_result("Failed to create image views", result)
 		}
 	}
 }
 
-@(private)
+@(private = "file")
 choose_swap_surface_format :: proc(
 	available_formats: []vk.SurfaceFormatKHR,
 ) -> vk.SurfaceFormatKHR {
@@ -287,7 +334,7 @@ choose_swap_surface_format :: proc(
 	return available_formats[0]
 }
 
-@(private)
+@(private = "file")
 choose_swap_present_mode :: proc(
 	available_present_modes: []vk.PresentModeKHR,
 ) -> vk.PresentModeKHR {
@@ -300,16 +347,16 @@ choose_swap_present_mode :: proc(
 	return .FIFO
 }
 
-@(private)
+@(private = "file")
 choose_swap_extent :: proc(
 	capabilities: vk.SurfaceCapabilitiesKHR,
-	_window: ^window.Window,
+	window: ^Window,
 ) -> vk.Extent2D {
 	if capabilities.currentExtent.width != 0xFFFFFFFF {
 		return capabilities.currentExtent
 	}
 
-	width, height := glfw.GetFramebufferSize(_window.handle)
+	width, height := glfw.GetFramebufferSize(window.handle)
 
 	actual_extent := vk.Extent2D {
 		width  = u32(width),
@@ -329,4 +376,16 @@ choose_swap_extent :: proc(
 	)
 
 	return actual_extent
+}
+
+@(private = "file")
+swap_chain_cleanup :: proc(
+	framebuffer_manager: ^FramebufferManager,
+	logical_device: vk.Device,
+	swap_chain: SwapChain,
+	pipeline: GraphicsPipeline,
+) {
+	framebuffer_manager_destroy(framebuffer_manager)
+	swap_chain_destroy(logical_device, swap_chain)
+	pipeline_destroy(logical_device, pipeline)
 }
