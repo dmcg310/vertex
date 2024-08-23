@@ -109,11 +109,13 @@ renderer_resources_init :: proc(
 		resources.device,
 		vertices,
 		resources.command_pool,
+		resources.vma_allocator,
 	)
 	resources.index_buffer = buffer_index_create(
 		resources.device,
 		indices,
 		resources.command_pool,
+		resources.vma_allocator,
 	)
 	resources.command_buffers = command_buffers_create(
 		resources.device.logical_device,
@@ -255,8 +257,8 @@ resources_destroy :: proc(resources: ^RendererResources) {
 
 	imgui_destroy(device, resources.imgui)
 	sync_objects_destroy(&resources.sync_objects, device)
-	buffer_vertex_destroy(&resources.vertex_buffer, device)
-	buffer_index_destroy(&resources.index_buffer, device)
+	buffer_vertex_destroy(&resources.vertex_buffer, resources.vma_allocator)
+	buffer_index_destroy(&resources.index_buffer, resources.vma_allocator)
 	command_pool_destroy(&resources.command_pool, device)
 	framebuffer_manager_destroy(&resources.framebuffer_manager)
 	pipeline_destroy(device, resources.pipeline)
