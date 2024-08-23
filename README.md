@@ -24,16 +24,18 @@ Ensure that both Odin and Vulkan SDK are properly installed and their paths are 
 ## Project Structure
 
 ```sh
-├── src\       # Odin source files
-├── scripts\        # Build and compile scripts
+├── src\    # Odin source files
+├── scripts\    # Build and compile scripts
 │   ├── build.py
 │   ├── compile.bat
 │   └── compile.sh
-├── shaders\        # GLSL shader files
-├── bin\            # Output directory for compiled binary
-└── external\       # External dependencies
-    ├── odin-imgui\ # ImGui bindings for Odin (submodule)
-    └── odin-vma\   # VulkanMemoryAllocator bindings for Odin (submodule)
+├── assets\
+│   ├── shaders\    # GLSL shader files
+│   └── textures\    # Texture files
+├── bin\    # Output directory for compiled binary
+└── external\    # External dependencies
+    ├── odin-imgui\    # ImGui bindings for Odin (submodule)
+    └── odin-vma\    # VulkanMemoryAllocator bindings for Odin (submodule)
 ```
 
 ## Building and Running
