@@ -258,11 +258,13 @@ buffer_uniforms_update :: proc(
 	uniform_buffers: ^UniformBuffers,
 	current_frame: u32,
 	swap_chain_extent: vk.Extent2D,
+	vma_allocator: VMAAllocator,
 ) {
 	start_time := time.now()
 	time_elapsed := time.duration_seconds(time.since(start_time))
 
 	ubo := &uniform_buffers.buffers[current_frame].object
+
 	ubo.model = linalg.matrix4_rotate_f32(
 		f32(time_elapsed * linalg.to_radians(90.0)),
 		Vec3{0, 0, 1},
@@ -278,13 +280,23 @@ buffer_uniforms_update :: proc(
 		f32(swap_chain_extent.width) / f32(swap_chain_extent.height)
 
 	ubo.projection = linalg.matrix4_perspective_f32(
-		f32(linalg.to_radians(45.0)), // Field of view in radians
-		aspect_ratio, // Aspect ratio
-		0.1, // Near plane
-		10.0, // Far plane
+		f32(linalg.to_radians(45.0)),
+		aspect_ratio,
+		0.1,
+		10.0,
 	)
 
 	ubo.projection[1][1] *= -1
+
+	mapped_data := vma_map_memory(
+		vma_allocator,
+		uniform_buffers.buffers[current_frame].allocation,
+	)
+	mem.copy(mapped_data, ubo, size_of(UniformBufferObject))
+	vma_unmap_memory(
+		vma_allocator,
+		uniform_buffers.buffers[current_frame].allocation,
+	)
 }
 
 buffer_uniforms_destroy :: proc(
@@ -292,7 +304,6 @@ buffer_uniforms_destroy :: proc(
 	vma_allocator: VMAAllocator,
 ) {
 	for i in 0 ..< MAX_FRAMES_IN_FLIGHT {
-		log("Destorying a uniform buffer", "DEBUG")
 		vma_buffer_destroy(
 			vma_allocator,
 			buffers.buffers[i].buffer,

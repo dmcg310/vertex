@@ -24,6 +24,8 @@ RendererResources :: struct {
 	vertex_buffer:         VertexBuffer,
 	index_buffer:          IndexBuffer,
 	uniform_buffers:       UniformBuffers,
+	descriptor_pool:       DescriptorPool,
+	descriptor_sets:       DescriptorSets,
 	command_buffers:       CommandBuffers,
 	sync_objects:          SyncObject,
 	imgui:                 ImGuiState,
@@ -127,6 +129,15 @@ renderer_resources_init :: proc(
 		resources.device,
 		resources.vma_allocator,
 	)
+	resources.descriptor_pool = descriptor_pool_create(
+		resources.device.logical_device,
+	)
+	resources.descriptor_sets = descriptor_sets_create(
+		resources.descriptor_pool,
+		resources.device.logical_device,
+		resources.uniform_buffers,
+		resources.descriptor_set_layout,
+	)
 	resources.command_buffers = command_buffers_create(
 		resources.device.logical_device,
 		resources.command_pool,
@@ -205,16 +216,17 @@ frame_render :: proc(renderer: ^Renderer) -> bool {
 	command_buffer := renderer.resources.command_buffers.buffers[current_frame]
 	sync_objects := renderer.resources.sync_objects
 
-	command_buffer_reset(command_buffer)
-
-	imgui_new_frame()
-	im.ShowDemoWindow()
-
 	buffer_uniforms_update(
 		&renderer.resources.uniform_buffers,
 		current_frame,
 		renderer.resources.swap_chain.extent_2d,
+		renderer.resources.vma_allocator,
 	)
+
+	command_buffer_reset(command_buffer)
+
+	imgui_new_frame()
+	im.ShowDemoWindow()
 
 	record_ok := command_buffer_record(
 		command_buffer,
@@ -225,6 +237,8 @@ frame_render :: proc(renderer: ^Renderer) -> bool {
 		renderer.resources.index_buffer,
 		{.ONE_TIME_SUBMIT},
 		renderer.state.image_index,
+		renderer.state.current_frame,
+		renderer.resources.descriptor_sets,
 	)
 	if !record_ok do return false
 
@@ -275,17 +289,18 @@ resources_destroy :: proc(resources: ^RendererResources) {
 
 	imgui_destroy(device, resources.imgui)
 	sync_objects_destroy(&resources.sync_objects, device)
-	buffer_vertex_destroy(&resources.vertex_buffer, resources.vma_allocator)
-	buffer_index_destroy(&resources.index_buffer, resources.vma_allocator)
+	descriptor_pool_destroy(device, resources.descriptor_pool)
 	buffer_uniforms_destroy(
 		&resources.uniform_buffers,
 		resources.vma_allocator,
 	)
+	buffer_index_destroy(&resources.index_buffer, resources.vma_allocator)
+	buffer_vertex_destroy(&resources.vertex_buffer, resources.vma_allocator)
 	command_pool_destroy(&resources.command_pool, device)
 	framebuffer_manager_destroy(&resources.framebuffer_manager)
 	pipeline_destroy(device, resources.pipeline)
-	swap_chain_destroy(device, resources.swap_chain)
 	descriptor_set_layout_destroy(device, resources.descriptor_set_layout)
+	swap_chain_destroy(device, resources.swap_chain)
 	vma_destroy(resources.vma_allocator)
 	device_logical_destroy(device)
 	device_surface_destroy(

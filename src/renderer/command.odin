@@ -77,6 +77,8 @@ command_buffer_record :: proc(
 	index_buffer: IndexBuffer,
 	flags: vk.CommandBufferUsageFlags,
 	image_idx: u32,
+	current_frame: u32,
+	descriptor_sets: DescriptorSets,
 ) -> bool {
 	begin_info := vk.CommandBufferBeginInfo {
 		sType = .COMMAND_BUFFER_BEGIN_INFO,
@@ -127,6 +129,7 @@ command_buffer_record :: proc(
 	vk.CmdSetScissor(command_buffers, 0, 1, &scissor)
 
 	offsets := []vk.DeviceSize{0}
+
 	vertex_buffers := []vk.Buffer{vertex_buffer.buffer}
 	vk.CmdBindVertexBuffers(
 		command_buffers,
@@ -135,7 +138,19 @@ command_buffer_record :: proc(
 		raw_data(vertex_buffers),
 		raw_data(offsets),
 	)
+
 	vk.CmdBindIndexBuffer(command_buffers, index_buffer.buffer, 0, .UINT32)
+
+	vk.CmdBindDescriptorSets(
+		command_buffers,
+		.GRAPHICS,
+		graphics_pipeline.pipeline_layout,
+		0,
+		1,
+		&descriptor_sets[current_frame],
+		0,
+		nil,
+	)
 
 	vk.CmdDrawIndexed(
 		command_buffers,

@@ -36,7 +36,13 @@ pipeline_create :: proc(
 	vertex_input := create_vertex_input()
 	input_assembly := create_input_assembly(.TRIANGLE_LIST, false)
 	viewport_state := create_viewport_state()
-	rasterizer := create_rasterizer(.FILL, 1.0, {}, .COUNTER_CLOCKWISE, false)
+	rasterizer := create_rasterizer(
+		.FILL,
+		1.0,
+		{.BACK},
+		.COUNTER_CLOCKWISE,
+		false,
+	)
 	multisampling := create_multisampling()
 	color_blend_attachment := create_color_blend_attachment(true)
 	color_blending := create_color_blend_state(&color_blend_attachment)
