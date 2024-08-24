@@ -111,7 +111,9 @@ device_logical_create :: proc(
 		append(&queue_create_infos, queue_create_info)
 	}
 
-	device_features := vk.PhysicalDeviceFeatures{}
+	device_features := vk.PhysicalDeviceFeatures {
+		samplerAnisotropy = true,
+	}
 
 	cstring_arr_device_extensions := util.dynamic_array_of_strings_to_cstrings(
 		DEVICE_EXTENSIONS,
@@ -270,6 +272,10 @@ device_is_suitable :: proc(
 	score += int(device_properties.limits.maxImageDimension2D)
 
 	if !device_features.geometryShader {
+		return 0
+	}
+
+	if !device_features.samplerAnisotropy {
 		return 0
 	}
 

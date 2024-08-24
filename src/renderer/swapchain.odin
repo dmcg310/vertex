@@ -290,34 +290,11 @@ create_image_views :: proc(swap_chain: ^SwapChain, device: vk.Device) {
 	)
 
 	for _, i in swap_chain.images {
-		create_info := vk.ImageViewCreateInfo {
-			sType = .IMAGE_VIEW_CREATE_INFO,
-			image = swap_chain.images[i],
-			viewType = .D2,
-			format = swap_chain.format.format,
-			components = {
-				r = .IDENTITY,
-				g = .IDENTITY,
-				b = .IDENTITY,
-				a = .IDENTITY,
-			},
-			subresourceRange = {
-				aspectMask = {.COLOR},
-				baseMipLevel = 0,
-				levelCount = 1,
-				baseArrayLayer = 0,
-				layerCount = 1,
-			},
-		}
-
-		if result := vk.CreateImageView(
+		swap_chain.image_views[i] = image_view_create(
 			device,
-			&create_info,
-			nil,
-			&swap_chain.image_views[i],
-		); result != .SUCCESS {
-			log_fatal_with_vk_result("Failed to create image views", result)
-		}
+			swap_chain.images[i],
+			swap_chain.format.format,
+		)
 	}
 }
 

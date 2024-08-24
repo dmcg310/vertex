@@ -10,6 +10,14 @@ TextureImage :: struct {
 	image: VMAImage,
 }
 
+TextureImageView :: struct {
+	view: vk.ImageView,
+}
+
+TextureSampler :: struct {
+	sampler: vk.Sampler,
+}
+
 texture_image_create :: proc(
 	device: vk.Device,
 	command_pool: vk.CommandPool,
@@ -102,6 +110,104 @@ texture_image_destroy :: proc(
 	vma_image_destroy(vma_allocator, texture_image.image)
 }
 
+texture_image_view_create :: proc(
+	device: vk.Device,
+	texture_image: TextureImage,
+) -> TextureImageView {
+	texture_image_view := TextureImageView{}
+
+	texture_image_view.view = image_view_create(
+		device,
+		texture_image.image.image,
+		.R8G8B8A8_SRGB,
+	)
+
+	return texture_image_view
+}
+
+texture_image_view_destroy :: proc(
+	device: vk.Device,
+	texture_image_view: TextureImageView,
+) {
+	vk.DestroyImageView(device, texture_image_view.view, nil)
+}
+
+texture_sampler_create :: proc(device: Device) -> TextureSampler {
+	texture_sampler := TextureSampler{}
+
+	properties := vk.PhysicalDeviceProperties{}
+	vk.GetPhysicalDeviceProperties(device.physical_device, &properties)
+
+	sampler_info := vk.SamplerCreateInfo {
+		sType                   = .SAMPLER_CREATE_INFO,
+		magFilter               = .LINEAR,
+		minFilter               = .LINEAR,
+		addressModeU            = .REPEAT,
+		addressModeV            = .REPEAT,
+		addressModeW            = .REPEAT,
+		anisotropyEnable        = true,
+		maxAnisotropy           = properties.limits.maxSamplerAnisotropy,
+		borderColor             = .INT_OPAQUE_BLACK,
+		unnormalizedCoordinates = false,
+		compareEnable           = false,
+		compareOp               = .ALWAYS,
+		mipmapMode              = .LINEAR,
+		mipLodBias              = 0,
+		minLod                  = 0,
+		maxLod                  = 0,
+	}
+
+	if result := vk.CreateSampler(
+		device.logical_device,
+		&sampler_info,
+		nil,
+		&texture_sampler.sampler,
+	); result != .SUCCESS {
+		log_fatal_with_vk_result("Failed to create texture sampler", result)
+	}
+
+	log("Vulkan texture sampler created")
+
+	return texture_sampler
+}
+
+texture_sampler_destroy :: proc(
+	device: vk.Device,
+	texture_sampler: TextureSampler,
+) {
+	vk.DestroySampler(device, texture_sampler.sampler, nil)
+
+	log("Vulkan texture sampler destroyed")
+}
+
+image_view_create :: proc(
+	device: vk.Device,
+	image: vk.Image,
+	format: vk.Format,
+) -> vk.ImageView {
+	view_info := vk.ImageViewCreateInfo {
+		sType = .IMAGE_VIEW_CREATE_INFO,
+		image = image,
+		viewType = .D2,
+		format = format,
+		subresourceRange = {
+			aspectMask = {.COLOR},
+			baseMipLevel = 0,
+			levelCount = 1,
+			baseArrayLayer = 0,
+			layerCount = 1,
+		},
+	}
+
+	image_view: vk.ImageView
+	if result := vk.CreateImageView(device, &view_info, nil, &image_view);
+	   result != .SUCCESS {
+		log_fatal_with_vk_result("Failed to create image view", result)
+	}
+
+	return image_view
+}
+
 @(private = "file")
 transition_image_layout :: proc(
 	image: vk.Image,
@@ -121,7 +227,7 @@ transition_image_layout :: proc(
 		srcQueueFamilyIndex = vk.QUEUE_FAMILY_IGNORED,
 		dstQueueFamilyIndex = vk.QUEUE_FAMILY_IGNORED,
 		image = image,
-		subresourceRange = vk.ImageSubresourceRange {
+		subresourceRange = {
 			aspectMask = {.COLOR},
 			baseMipLevel = 0,
 			levelCount = 1,
@@ -185,7 +291,7 @@ copy_buffer_to_image :: proc(
 		bufferOffset = 0,
 		bufferRowLength = 0,
 		bufferImageHeight = 0,
-		imageSubresource = vk.ImageSubresourceLayers {
+		imageSubresource = {
 			aspectMask = {.COLOR},
 			mipLevel = 0,
 			baseArrayLayer = 0,

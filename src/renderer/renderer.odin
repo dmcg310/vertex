@@ -22,6 +22,8 @@ RendererResources :: struct {
 	framebuffer_manager:   FramebufferManager,
 	command_pool:          CommandPool,
 	texture_image:         TextureImage,
+	texture_image_view:    TextureImageView,
+	texture_sampler:       TextureSampler,
 	vertex_buffer:         VertexBuffer,
 	index_buffer:          IndexBuffer,
 	uniform_buffers:       UniformBuffers,
@@ -120,6 +122,11 @@ renderer_resources_init :: proc(
 		resources.device.graphics_queue,
 		resources.vma_allocator,
 	)
+	resources.texture_image_view = texture_image_view_create(
+		resources.device.logical_device,
+		resources.texture_image,
+	)
+	resources.texture_sampler = texture_sampler_create(resources.device)
 	resources.vertex_buffer = buffer_vertex_create(
 		resources.device,
 		vertices,
@@ -163,6 +170,7 @@ renderer_resources_init :: proc(
 	)
 
 	vma_print_stats(resources.vma_allocator)
+	device_print_properties(resources.device.physical_device)
 
 	return true
 }
@@ -304,6 +312,11 @@ resources_destroy :: proc(resources: ^RendererResources) {
 	)
 	buffer_index_destroy(&resources.index_buffer, resources.vma_allocator)
 	buffer_vertex_destroy(&resources.vertex_buffer, resources.vma_allocator)
+	texture_sampler_destroy(
+		resources.device.logical_device,
+		resources.texture_sampler,
+	)
+	texture_image_view_destroy(device, resources.texture_image_view)
 	texture_image_destroy(resources.vma_allocator, resources.texture_image)
 	command_pool_destroy(&resources.command_pool, device)
 	framebuffer_manager_destroy(&resources.framebuffer_manager)

@@ -37,7 +37,7 @@ vma_init :: proc(device: Device, instance: Instance) -> VMAAllocator {
 		log_fatal_with_vk_result("Failed to create VMA allocator", result)
 	}
 
-	log("Vukan memory allocator created")
+	log("Vulkan memory allocator created")
 
 	return vma_allocator
 }
