@@ -208,7 +208,12 @@ vma_print_stats :: proc(vma_allocator: VMAAllocator) {
 	ovma.CalculateStatistics(vma_allocator.allocator, &stats)
 
 	bytes := stats.total.statistics.allocationBytes
-	total_memory := fmt.tprintf("%v B, %.2f KB", bytes, f64(bytes) / 1024)
+	total_memory := fmt.tprintf(
+		"%v B, %.2f KB, %.2f MB",
+		bytes,
+		f64(bytes) / 1024,
+		(f64(bytes) / 1024) / 1024,
+	)
 
 	log(fmt.tprintf("Total memory allocated: %s", total_memory))
 	log(

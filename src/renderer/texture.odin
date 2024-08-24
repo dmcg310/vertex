@@ -120,6 +120,7 @@ texture_image_view_create :: proc(
 		device,
 		texture_image.image.image,
 		.R8G8B8A8_SRGB,
+		{.COLOR},
 	)
 
 	return texture_image_view
@@ -184,6 +185,7 @@ image_view_create :: proc(
 	device: vk.Device,
 	image: vk.Image,
 	format: vk.Format,
+	aspect_flags: vk.ImageAspectFlags,
 ) -> vk.ImageView {
 	view_info := vk.ImageViewCreateInfo {
 		sType = .IMAGE_VIEW_CREATE_INFO,
@@ -191,7 +193,7 @@ image_view_create :: proc(
 		viewType = .D2,
 		format = format,
 		subresourceRange = {
-			aspectMask = {.COLOR},
+			aspectMask = aspect_flags,
 			baseMipLevel = 0,
 			levelCount = 1,
 			baseArrayLayer = 0,

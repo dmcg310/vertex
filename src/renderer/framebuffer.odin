@@ -18,6 +18,7 @@ FramebufferManager :: struct {
 framebuffer_manager_create :: proc(
 	swap_chain: SwapChain,
 	render_pass: vk.RenderPass,
+	depth_image_view: DepthImageView,
 ) -> FramebufferManager {
 	framebuffer_manager := FramebufferManager {
 		framebuffers = make(
@@ -30,7 +31,7 @@ framebuffer_manager_create :: proc(
 	}
 
 	for &image_view in framebuffer_manager.swap_chain.image_views {
-		framebuffer_push(&framebuffer_manager, &image_view)
+		framebuffer_push(&framebuffer_manager, &image_view, depth_image_view)
 	}
 
 	log("Framebuffer manager created")
@@ -55,6 +56,7 @@ framebuffer_manager_destroy :: proc(manager: ^FramebufferManager) {
 framebuffer_push :: proc(
 	manager: ^FramebufferManager,
 	attachment: ^vk.ImageView,
+	depth_image_view: DepthImageView,
 ) {
 	framebuffer := Framebuffer {
 		id     = uint(len(manager.framebuffers)),
@@ -62,11 +64,13 @@ framebuffer_push :: proc(
 		height = manager.swap_chain.extent_2d.height,
 	}
 
+	attachments: []vk.ImageView = {attachment^, depth_image_view.view}
+
 	framebuffer_info := vk.FramebufferCreateInfo {
 		sType           = .FRAMEBUFFER_CREATE_INFO,
 		renderPass      = manager.render_pass,
-		attachmentCount = 1,
-		pAttachments    = attachment,
+		attachmentCount = u32(len(attachments)),
+		pAttachments    = raw_data(attachments),
 		width           = framebuffer.width,
 		height          = framebuffer.height,
 		layers          = 1,

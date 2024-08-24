@@ -15,7 +15,7 @@ GraphicsPipeline :: struct {
 
 pipeline_create :: proc(
 	swap_chain: SwapChain,
-	device: vk.Device,
+	device: Device,
 	descriptor_set_layout: ^DescriptorSetlayout,
 ) -> GraphicsPipeline {
 	pipeline := GraphicsPipeline{}
@@ -25,8 +25,14 @@ pipeline_create :: proc(
 		return pipeline
 	}
 
-	vert_shader_module := shader_module_create(shaders.vertex_shader, device)
-	frag_shader_module := shader_module_create(shaders.fragment_shader, device)
+	vert_shader_module := shader_module_create(
+		shaders.vertex_shader,
+		device.logical_device,
+	)
+	frag_shader_module := shader_module_create(
+		shaders.fragment_shader,
+		device.logical_device,
+	)
 
 	shader_stages := []vk.PipelineShaderStageCreateInfo {
 		shader_stage_create({.VERTEX}, vert_shader_module),
@@ -44,11 +50,12 @@ pipeline_create :: proc(
 		false,
 	)
 	multisampling := create_multisampling()
+	depth_stencil := create_depth_stencil()
 	color_blend_attachment := create_color_blend_attachment(true)
 	color_blending := create_color_blend_state(&color_blend_attachment)
 	dynamic_state := create_dynamic_state()
 	pipeline.pipeline_layout = create_pipeline_layout(
-		device,
+		device.logical_device,
 		descriptor_set_layout,
 	)
 	pipeline.render_pass = create_render_pass(swap_chain, device)
@@ -62,6 +69,7 @@ pipeline_create :: proc(
 		pViewportState      = &viewport_state,
 		pRasterizationState = &rasterizer,
 		pMultisampleState   = &multisampling,
+		pDepthStencilState  = &depth_stencil,
 		pColorBlendState    = &color_blending,
 		pDynamicState       = &dynamic_state,
 		layout              = pipeline.pipeline_layout,
@@ -70,7 +78,7 @@ pipeline_create :: proc(
 	}
 
 	if result := vk.CreateGraphicsPipelines(
-		device,
+		device.logical_device,
 		0,
 		1,
 		&pipeline_info,
@@ -80,8 +88,8 @@ pipeline_create :: proc(
 		log_fatal_with_vk_result("Failed to create graphics pipeline", result)
 	}
 
-	vk.DestroyShaderModule(device, vert_shader_module, nil)
-	vk.DestroyShaderModule(device, frag_shader_module, nil)
+	vk.DestroyShaderModule(device.logical_device, vert_shader_module, nil)
+	vk.DestroyShaderModule(device.logical_device, frag_shader_module, nil)
 
 	log("Vulkan graphics pipeline created")
 
@@ -175,6 +183,22 @@ create_multisampling :: proc() -> vk.PipelineMultisampleStateCreateInfo {
 }
 
 @(private = "file")
+create_depth_stencil :: proc() -> vk.PipelineDepthStencilStateCreateInfo {
+	return vk.PipelineDepthStencilStateCreateInfo {
+		sType = .PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+		depthTestEnable = true,
+		depthWriteEnable = true,
+		depthCompareOp = .LESS,
+		depthBoundsTestEnable = false,
+		minDepthBounds = 0.0,
+		maxDepthBounds = 1.0,
+		stencilTestEnable = false,
+		front = {},
+		back = {},
+	}
+}
+
+@(private = "file")
 create_color_blend_attachment :: proc(
 	enable_blend: b32,
 ) -> vk.PipelineColorBlendAttachmentState {
@@ -245,7 +269,7 @@ create_pipeline_layout :: proc(
 @(private = "file")
 create_render_pass :: proc(
 	swap_chain: SwapChain,
-	device: vk.Device,
+	device: Device,
 ) -> vk.RenderPass {
 	render_pass := vk.RenderPass{}
 
@@ -260,30 +284,55 @@ create_render_pass :: proc(
 		finalLayout    = .PRESENT_SRC_KHR,
 	}
 
+	depth_attachment := vk.AttachmentDescription {
+		format         = depth_find_format(device.physical_device),
+		samples        = {._1},
+		loadOp         = .CLEAR,
+		storeOp        = .DONT_CARE,
+		stencilLoadOp  = .DONT_CARE,
+		stencilStoreOp = .DONT_CARE,
+		initialLayout  = .UNDEFINED,
+		finalLayout    = .DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+	}
+
 	color_attachment_ref := vk.AttachmentReference {
 		attachment = 0,
 		layout     = .COLOR_ATTACHMENT_OPTIMAL,
 	}
 
+	depth_attachment_ref := vk.AttachmentReference {
+		attachment = 1,
+		layout     = .DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+	}
+
 	sub_pass := vk.SubpassDescription {
-		pipelineBindPoint    = .GRAPHICS,
-		colorAttachmentCount = 1,
-		pColorAttachments    = &color_attachment_ref,
+		pipelineBindPoint       = .GRAPHICS,
+		colorAttachmentCount    = 1,
+		pColorAttachments       = &color_attachment_ref,
+		pDepthStencilAttachment = &depth_attachment_ref,
 	}
 
 	dependency := vk.SubpassDependency {
 		srcSubpass    = vk.SUBPASS_EXTERNAL,
 		dstSubpass    = 0,
-		srcStageMask  = {.COLOR_ATTACHMENT_OUTPUT},
+		srcStageMask  = {.COLOR_ATTACHMENT_OUTPUT, .EARLY_FRAGMENT_TESTS},
 		srcAccessMask = {},
-		dstStageMask  = {.COLOR_ATTACHMENT_OUTPUT},
-		dstAccessMask = {.COLOR_ATTACHMENT_WRITE},
+		dstStageMask  = {.COLOR_ATTACHMENT_OUTPUT, .EARLY_FRAGMENT_TESTS},
+		dstAccessMask = {
+			.COLOR_ATTACHMENT_WRITE,
+			.DEPTH_STENCIL_ATTACHMENT_WRITE,
+		},
+	}
+
+	attachments: []vk.AttachmentDescription = {
+		color_attachment,
+		depth_attachment,
 	}
 
 	render_pass_info := vk.RenderPassCreateInfo {
 		sType           = .RENDER_PASS_CREATE_INFO,
-		attachmentCount = 1,
-		pAttachments    = &color_attachment,
+		attachmentCount = u32(len(attachments)),
+		pAttachments    = raw_data(attachments),
 		subpassCount    = 1,
 		pSubpasses      = &sub_pass,
 		dependencyCount = 1,
@@ -291,7 +340,7 @@ create_render_pass :: proc(
 	}
 
 	if result := vk.CreateRenderPass(
-		device,
+		device.logical_device,
 		&render_pass_info,
 		nil,
 		&render_pass,

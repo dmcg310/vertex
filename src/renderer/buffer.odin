@@ -12,7 +12,7 @@ Vec3 :: linalg.Vector3f32
 Mat4 :: linalg.Matrix4x4f32
 
 Vertex :: struct {
-	pos:      Vec2,
+	pos:      Vec3,
 	color:    Vec3,
 	texCoord: Vec2,
 }
@@ -120,7 +120,7 @@ buffer_get_vertex_attribute_descriptions :: proc(
 		{
 			binding = 0,
 			location = 0,
-			format = .R32G32_SFLOAT,
+			format = .R32G32B32_SFLOAT,
 			offset = u32(offset_of(Vertex, pos)),
 		},
 		{

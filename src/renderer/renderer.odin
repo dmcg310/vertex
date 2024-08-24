@@ -21,6 +21,8 @@ RendererResources :: struct {
 	pipeline:              GraphicsPipeline,
 	framebuffer_manager:   FramebufferManager,
 	command_pool:          CommandPool,
+	depth_image:           DepthImage,
+	depth_image_view:      DepthImageView,
 	texture_image:         TextureImage,
 	texture_image_view:    TextureImageView,
 	texture_sampler:       TextureSampler,
@@ -69,13 +71,18 @@ renderer_resources_init :: proc(
 	resources: ^RendererResources,
 	config: RendererConfiguration,
 ) -> bool {
-	vertices := []Vertex {
-		{{-0.5, -0.5}, {1.0, 0.0, 0.0}, {1.0, 0.0}},
-		{{0.5, -0.5}, {0.0, 1.0, 0.0}, {0.0, 0.0}},
-		{{0.5, 0.5}, {0.0, 0.0, 1.0}, {0.0, 1.0}},
-		{{-0.5, 0.5}, {1.0, 1.0, 1.0}, {1.0, 1.0}},
+	vertices: []Vertex = {
+		{{-0.5, -0.5, 0.0}, {1.0, 0.0, 0.0}, {0.0, 0.0}},
+		{{0.5, -0.5, 0.0}, {0.0, 1.0, 0.0}, {1.0, 0.0}},
+		{{0.5, 0.5, 0.0}, {0.0, 0.0, 1.0}, {1.0, 1.0}},
+		{{-0.5, 0.5, 0.0}, {1.0, 1.0, 1.0}, {0.0, 1.0}},
+		{{-0.5, -0.5, -0.5}, {1.0, 0.0, 0.0}, {0.0, 0.0}},
+		{{0.5, -0.5, -0.5}, {0.0, 1.0, 0.0}, {1.0, 0.0}},
+		{{0.5, 0.5, -0.5}, {0.0, 0.0, 1.0}, {1.0, 1.0}},
+		{{-0.5, 0.5, -0.5}, {1.0, 1.0, 1.0}, {0.0, 1.0}},
 	}
-	indices := []u32{0, 1, 2, 2, 3, 0}
+
+	indices := []u32{0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4}
 
 	resources.window = window_create(config.width, config.height, config.title)
 	resources.instance = instance_create(config.validation_layers_enabled)
@@ -105,16 +112,22 @@ renderer_resources_init :: proc(
 	)
 	resources.pipeline = pipeline_create(
 		resources.swap_chain,
-		resources.device.logical_device,
+		resources.device,
 		&resources.descriptor_set_layout,
-	)
-	resources.framebuffer_manager = framebuffer_manager_create(
-		resources.swap_chain,
-		resources.pipeline.render_pass,
 	)
 	resources.command_pool = command_pool_create(
 		resources.device.logical_device,
 		resources.swap_chain,
+	)
+	resources.depth_image, resources.depth_image_view = depth_resources_create(
+		resources.device,
+		resources.swap_chain,
+		resources.vma_allocator,
+	)
+	resources.framebuffer_manager = framebuffer_manager_create(
+		resources.swap_chain,
+		resources.pipeline.render_pass,
+		resources.depth_image_view,
 	)
 	resources.texture_image = texture_image_create(
 		resources.device.logical_device,
@@ -320,8 +333,14 @@ resources_destroy :: proc(resources: ^RendererResources) {
 	)
 	texture_image_view_destroy(device, resources.texture_image_view)
 	texture_image_destroy(resources.vma_allocator, resources.texture_image)
-	command_pool_destroy(&resources.command_pool, device)
 	framebuffer_manager_destroy(&resources.framebuffer_manager)
+	depth_resources_destroy(
+		resources.vma_allocator,
+		device,
+		resources.depth_image,
+		resources.depth_image_view,
+	)
+	command_pool_destroy(&resources.command_pool, device)
 	pipeline_destroy(device, resources.pipeline)
 	descriptor_set_layout_destroy(device, resources.descriptor_set_layout)
 	swap_chain_destroy(device, resources.swap_chain)

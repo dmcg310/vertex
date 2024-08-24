@@ -254,6 +254,9 @@ swap_chain_recreate :: proc(renderer: ^Renderer) {
 		renderer.resources.device.logical_device,
 		renderer.resources.swap_chain,
 		renderer.resources.pipeline,
+		renderer.resources.vma_allocator,
+		renderer.resources.depth_image,
+		renderer.resources.depth_image_view,
 	)
 
 	renderer.resources.swap_chain = swap_chain_create(
@@ -264,13 +267,21 @@ swap_chain_recreate :: proc(renderer: ^Renderer) {
 
 	renderer.resources.pipeline = pipeline_create(
 		renderer.resources.swap_chain,
-		renderer.resources.device.logical_device,
+		renderer.resources.device,
 		&renderer.resources.descriptor_set_layout,
 	)
+
+	renderer.resources.depth_image, renderer.resources.depth_image_view =
+		depth_resources_create(
+			renderer.resources.device,
+			renderer.resources.swap_chain,
+			renderer.resources.vma_allocator,
+		)
 
 	renderer.resources.framebuffer_manager = framebuffer_manager_create(
 		renderer.resources.swap_chain,
 		renderer.resources.pipeline.render_pass,
+		renderer.resources.depth_image_view,
 	)
 
 	renderer.resources.command_buffers = command_buffers_create(
@@ -294,6 +305,7 @@ create_image_views :: proc(swap_chain: ^SwapChain, device: vk.Device) {
 			device,
 			swap_chain.images[i],
 			swap_chain.format.format,
+			{.COLOR},
 		)
 	}
 }
@@ -362,8 +374,17 @@ swap_chain_cleanup :: proc(
 	logical_device: vk.Device,
 	swap_chain: SwapChain,
 	pipeline: GraphicsPipeline,
+	vma_allocator: VMAAllocator,
+	depth_image: DepthImage,
+	depth_image_view: DepthImageView,
 ) {
 	framebuffer_manager_destroy(framebuffer_manager)
+	depth_resources_destroy(
+		vma_allocator,
+		logical_device,
+		depth_image,
+		depth_image_view,
+	)
 	swap_chain_destroy(logical_device, swap_chain)
 	pipeline_destroy(logical_device, pipeline)
 }
