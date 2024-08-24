@@ -30,6 +30,8 @@ window_create :: proc(width, height: i32, title: string) -> Window {
 		log_fatal("Failed to create GLFW window")
 	}
 
+	glfw.MaximizeWindow(window.handle)
+
 	glfw.SetFramebufferSizeCallback(window.handle, framebuffer_size_callback)
 	glfw.SetKeyCallback(window.handle, key_callback)
 
