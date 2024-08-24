@@ -12,8 +12,9 @@ Vec3 :: linalg.Vector3f32
 Mat4 :: linalg.Matrix4x4f32
 
 Vertex :: struct {
-	pos:   Vec2,
-	color: Vec3,
+	pos:      Vec2,
+	color:    Vec3,
+	texCoord: Vec2,
 }
 
 VertexBuffer :: struct {
@@ -114,8 +115,8 @@ buffer_get_vertex_binding_description :: proc(
 }
 
 buffer_get_vertex_attribute_descriptions :: proc(
-) -> [2]vk.VertexInputAttributeDescription {
-	return [2]vk.VertexInputAttributeDescription {
+) -> [3]vk.VertexInputAttributeDescription {
+	return [3]vk.VertexInputAttributeDescription {
 		{
 			binding = 0,
 			location = 0,
@@ -127,6 +128,12 @@ buffer_get_vertex_attribute_descriptions :: proc(
 			location = 1,
 			format = .R32G32B32_SFLOAT,
 			offset = u32(offset_of(Vertex, color)),
+		},
+		{
+			binding = 0,
+			location = 2,
+			format = .R32G32_SFLOAT,
+			offset = u32(offset_of(Vertex, texCoord)),
 		},
 	}
 }

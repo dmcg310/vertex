@@ -113,7 +113,7 @@ create_vertex_input :: proc() -> vk.PipelineVertexInputStateCreateInfo {
 		context.temp_allocator,
 	)
 	attribute_descriptions := new(
-		[2]vk.VertexInputAttributeDescription,
+		[3]vk.VertexInputAttributeDescription,
 		context.temp_allocator,
 	)
 

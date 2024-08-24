@@ -70,10 +70,10 @@ renderer_resources_init :: proc(
 	config: RendererConfiguration,
 ) -> bool {
 	vertices := []Vertex {
-		{{-0.5, -0.5}, {1.0, 0.0, 0.0}},
-		{{0.5, -0.5}, {0.0, 1.0, 0.0}},
-		{{0.5, 0.5}, {0.0, 0.0, 1.0}},
-		{{-0.5, 0.5}, {1.0, 1.0, 1.0}},
+		{{-0.5, -0.5}, {1.0, 0.0, 0.0}, {1.0, 0.0}},
+		{{0.5, -0.5}, {0.0, 1.0, 0.0}, {0.0, 0.0}},
+		{{0.5, 0.5}, {0.0, 0.0, 1.0}, {0.0, 1.0}},
+		{{-0.5, 0.5}, {1.0, 1.0, 1.0}, {1.0, 1.0}},
 	}
 	indices := []u32{0, 1, 2, 2, 3, 0}
 
@@ -151,6 +151,8 @@ renderer_resources_init :: proc(
 		resources.device.logical_device,
 		resources.uniform_buffers,
 		resources.descriptor_set_layout,
+		resources.texture_image_view,
+		resources.texture_sampler,
 	)
 	resources.command_buffers = command_buffers_create(
 		resources.device.logical_device,

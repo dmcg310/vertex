@@ -25,10 +25,23 @@ descriptor_set_layout_create :: proc(
 		pImmutableSamplers = nil,
 	}
 
+	sampler_layout_binding := vk.DescriptorSetLayoutBinding {
+		binding            = 1,
+		descriptorCount    = 1,
+		descriptorType     = .COMBINED_IMAGE_SAMPLER,
+		pImmutableSamplers = nil,
+		stageFlags         = {.FRAGMENT},
+	}
+
+	bindings: []vk.DescriptorSetLayoutBinding = {
+		ubo_layout_binding,
+		sampler_layout_binding,
+	}
+
 	layout_info := vk.DescriptorSetLayoutCreateInfo {
 		sType        = .DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-		bindingCount = 1,
-		pBindings    = &ubo_layout_binding,
+		bindingCount = u32(len(bindings)),
+		pBindings    = raw_data(bindings),
 	}
 
 	if result := vk.CreateDescriptorSetLayout(
@@ -60,15 +73,21 @@ descriptor_set_layout_destroy :: proc(
 descriptor_pool_create :: proc(device: vk.Device) -> DescriptorPool {
 	descriptor_pool := DescriptorPool{}
 
-	pool_size := vk.DescriptorPoolSize {
-		type            = .UNIFORM_BUFFER,
-		descriptorCount = u32(MAX_FRAMES_IN_FLIGHT),
+	pool_sizes: []vk.DescriptorPoolSize = {
+		vk.DescriptorPoolSize {
+			type = .UNIFORM_BUFFER,
+			descriptorCount = u32(MAX_FRAMES_IN_FLIGHT),
+		},
+		vk.DescriptorPoolSize {
+			type = .COMBINED_IMAGE_SAMPLER,
+			descriptorCount = u32(MAX_FRAMES_IN_FLIGHT),
+		},
 	}
 
 	pool_info := vk.DescriptorPoolCreateInfo {
 		sType         = .DESCRIPTOR_POOL_CREATE_INFO,
-		poolSizeCount = 1,
-		pPoolSizes    = &pool_size,
+		poolSizeCount = u32(len(pool_sizes)),
+		pPoolSizes    = raw_data(pool_sizes),
 		maxSets       = u32(MAX_FRAMES_IN_FLIGHT),
 	}
 
@@ -100,6 +119,8 @@ descriptor_sets_create :: proc(
 	device: vk.Device,
 	uniform_buffers: UniformBuffers,
 	descriptor_set_layout: DescriptorSetlayout,
+	texture_image_view: TextureImageView,
+	texture_sampler: TextureSampler,
 ) -> DescriptorSets {
 	layouts := make(
 		[]vk.DescriptorSetLayout,
@@ -139,19 +160,43 @@ descriptor_sets_create :: proc(
 			range  = size_of(UniformBufferObject),
 		}
 
-		descriptor_write := vk.WriteDescriptorSet {
-			sType            = .WRITE_DESCRIPTOR_SET,
-			dstSet           = descriptor_sets[i],
-			dstBinding       = 0,
-			dstArrayElement  = 0,
-			descriptorType   = .UNIFORM_BUFFER,
-			descriptorCount  = 1,
-			pBufferInfo      = &buffer_info,
-			pImageInfo       = nil,
-			pTexelBufferView = nil,
+		image_info := vk.DescriptorImageInfo {
+			imageLayout = .SHADER_READ_ONLY_OPTIMAL,
+			imageView   = texture_image_view.view,
+			sampler     = texture_sampler.sampler,
 		}
 
-		vk.UpdateDescriptorSets(device, 1, &descriptor_write, 0, nil)
+		descriptor_writes: []vk.WriteDescriptorSet = {
+			vk.WriteDescriptorSet {
+				sType = .WRITE_DESCRIPTOR_SET,
+				dstSet = descriptor_sets[i],
+				dstBinding = 0,
+				dstArrayElement = 0,
+				descriptorType = .UNIFORM_BUFFER,
+				descriptorCount = 1,
+				pBufferInfo = &buffer_info,
+				pImageInfo = nil,
+				pTexelBufferView = nil,
+			},
+			vk.WriteDescriptorSet {
+				sType = .WRITE_DESCRIPTOR_SET,
+				dstSet = descriptor_sets[i],
+				dstBinding = 1,
+				dstArrayElement = 0,
+				descriptorType = .COMBINED_IMAGE_SAMPLER,
+				descriptorCount = 1,
+				pImageInfo = &image_info,
+				pTexelBufferView = nil,
+			},
+		}
+
+		vk.UpdateDescriptorSets(
+			device,
+			u32(len(descriptor_writes)),
+			raw_data(descriptor_writes),
+			0,
+			nil,
+		)
 	}
 
 	log("Vulkan descriptor sets created")
