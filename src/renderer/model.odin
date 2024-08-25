@@ -3,6 +3,7 @@ package renderer
 import "core:fmt"
 import "core:strconv"
 import "core:strings"
+import "core:thread"
 
 Attrib :: struct {
 	vertices:   [dynamic]f32,
@@ -26,6 +27,18 @@ Model :: struct {
 	indices:  [dynamic]u32,
 }
 
+ChunkResult :: struct {
+	attrib: Attrib,
+	shapes: [dynamic]Shape,
+}
+
+ChunkData :: struct {
+	chunk:  []string,
+	result: ^ChunkResult,
+}
+
+NUM_THREADS :: 4
+
 model_load :: proc(path: string) -> (Attrib, []Shape) {
 	data, read_ok := read_file(path)
 	if !read_ok {
@@ -33,21 +46,88 @@ model_load :: proc(path: string) -> (Attrib, []Shape) {
 		return {}, nil
 	}
 
-	attrib := Attrib {
+	lines := strings.split(string(data), "\n")
+	defer delete(lines)
+
+	chunk_size := len(lines) / NUM_THREADS
+	chunks := make([]ChunkData, NUM_THREADS, context.temp_allocator)
+	results := make([]ChunkResult, NUM_THREADS, context.temp_allocator)
+
+	for i in 0 ..< NUM_THREADS {
+		start := i * chunk_size
+		end := min((i + 1) * chunk_size, len(lines))
+
+		if i == NUM_THREADS - 1 {
+			end = len(lines)
+		}
+
+		chunks[i] = ChunkData {
+			chunk  = lines[start:end],
+			result = &results[i],
+		}
+	}
+
+	pool: thread.Pool
+	thread.pool_init(&pool, context.allocator, thread_count = NUM_THREADS)
+	defer thread.pool_destroy(&pool)
+
+	process_chunk :: proc(task: thread.Task) {
+		chunk_data := cast(^ChunkData)task.data
+		chunk_data.result^ = process_chunk_data(chunk_data.chunk)
+	}
+
+	for i in 0 ..< NUM_THREADS {
+		thread.pool_add_task(
+			&pool,
+			context.allocator,
+			procedure = process_chunk,
+			data = &chunks[i],
+			user_index = i,
+		)
+	}
+
+	thread.pool_start(&pool)
+	thread.pool_finish(&pool)
+
+	final_attrib := Attrib {
 		vertices   = make([dynamic]f32, context.temp_allocator),
 		normals    = make([dynamic]f32, context.temp_allocator),
 		tex_coords = make([dynamic]f32, context.temp_allocator),
 	}
+	final_shapes := make([dynamic]Shape, context.temp_allocator)
 
-	shapes := make([dynamic]Shape, context.temp_allocator)
-	current_shape := Shape {
-		indices = make([dynamic]Index, 0, 1024, context.temp_allocator),
+	for result in results {
+		append(&final_attrib.vertices, ..result.attrib.vertices[:])
+		append(&final_attrib.normals, ..result.attrib.normals[:])
+		append(&final_attrib.tex_coords, ..result.attrib.tex_coords[:])
+		append(&final_shapes, ..result.shapes[:])
+
+		delete(result.attrib.vertices)
+		delete(result.attrib.normals)
+		delete(result.attrib.tex_coords)
+		delete(result.shapes)
 	}
 
-	lines := strings.split(string(data), "\n")
-	defer delete(lines)
+	log(fmt.tprintf("Loaded model: %v", path))
 
-	for line in lines {
+	return final_attrib, final_shapes[:]
+}
+
+process_chunk_data :: proc(chunk: []string) -> ChunkResult {
+	result := ChunkResult {
+		attrib = Attrib {
+			vertices = make([dynamic]f32),
+			normals = make([dynamic]f32),
+			tex_coords = make([dynamic]f32),
+		},
+		shapes = make([dynamic]Shape),
+	}
+
+	current_shape := Shape {
+		indices = make([dynamic]Index, 0, 1024),
+	}
+
+	for line in chunk {
 		parts := strings.split(strings.trim_space(line), " ")
 		if len(parts) == 0 do continue
 		defer delete(parts)
@@ -57,21 +137,21 @@ model_load :: proc(path: string) -> (Attrib, []Shape) {
 			if len(parts) == 4 {
 				for i in 1 ..= 3 {
 					value := strconv.parse_f32(parts[i]) or_else 0
-					append(&attrib.vertices, value)
+					append(&result.attrib.vertices, value)
 				}
 			}
 		case "vn":
 			if len(parts) == 4 {
 				for i in 1 ..= 3 {
 					value := strconv.parse_f32(parts[i]) or_else 0
-					append(&attrib.normals, value)
+					append(&result.attrib.normals, value)
 				}
 			}
 		case "vt":
 			if len(parts) == 3 {
 				for i in 1 ..= 2 {
 					value := strconv.parse_f32(parts[i]) or_else 0
-					append(&attrib.tex_coords, value)
+					append(&result.attrib.tex_coords, value)
 				}
 			}
 		case "f":
@@ -97,13 +177,9 @@ model_load :: proc(path: string) -> (Attrib, []Shape) {
 			}
 		case "o", "g":
 			if len(current_shape.indices) > 0 {
-				append(&shapes, current_shape)
+				append(&result.shapes, current_shape)
 				current_shape = Shape {
-					indices = make(
-						[dynamic]Index,
-						1024,
-						context.temp_allocator,
-					),
+					indices = make([dynamic]Index, 1024),
 				}
 			}
 
@@ -118,12 +194,12 @@ model_load :: proc(path: string) -> (Attrib, []Shape) {
 	}
 
 	if len(current_shape.indices) > 0 {
-		append(&shapes, current_shape)
+		append(&result.shapes, current_shape)
+	} else {
+		delete(current_shape.indices)
 	}
 
-	log(fmt.tprintf("Loaded model: %v", path))
-
-	return attrib, shapes[:]
+	return result
 }
 
 model_create :: proc(attrib: Attrib, shapes: []Shape) -> Model {
@@ -135,6 +211,8 @@ model_create :: proc(attrib: Attrib, shapes: []Shape) -> Model {
 	unique_vertices := make(map[Vertex]u32, 1024, context.temp_allocator)
 
 	for shape in shapes {
+		defer delete(shape.indices)
+
 		for index in shape.indices {
 			pos_x := attrib.vertices[3 * (index.vertex_index - 1)]
 			pos_y := attrib.vertices[3 * (index.vertex_index - 1) + 1]
