@@ -26,6 +26,7 @@ RendererResources :: struct {
 	texture_image:         TextureImage,
 	texture_image_view:    TextureImageView,
 	texture_sampler:       TextureSampler,
+	model:                 Model,
 	vertex_buffer:         VertexBuffer,
 	index_buffer:          IndexBuffer,
 	uniform_buffers:       UniformBuffers,
@@ -50,6 +51,9 @@ RendererConfiguration :: struct {
 	validation_layers_enabled: bool,
 }
 
+TEXTURE_PATH :: "assets/textures/viking_room.png"
+MODEL_PATH :: "assets/models/viking_room.obj"
+
 renderer_init :: proc(
 	renderer: ^Renderer,
 	config: RendererConfiguration,
@@ -71,18 +75,8 @@ renderer_resources_init :: proc(
 	resources: ^RendererResources,
 	config: RendererConfiguration,
 ) -> bool {
-	vertices: []Vertex = {
-		{{-0.5, -0.5, 0.0}, {1.0, 0.0, 0.0}, {0.0, 0.0}},
-		{{0.5, -0.5, 0.0}, {0.0, 1.0, 0.0}, {1.0, 0.0}},
-		{{0.5, 0.5, 0.0}, {0.0, 0.0, 1.0}, {1.0, 1.0}},
-		{{-0.5, 0.5, 0.0}, {1.0, 1.0, 1.0}, {0.0, 1.0}},
-		{{-0.5, -0.5, -0.5}, {1.0, 0.0, 0.0}, {0.0, 0.0}},
-		{{0.5, -0.5, -0.5}, {0.0, 1.0, 0.0}, {1.0, 0.0}},
-		{{0.5, 0.5, -0.5}, {0.0, 0.0, 1.0}, {1.0, 1.0}},
-		{{-0.5, 0.5, -0.5}, {1.0, 1.0, 1.0}, {0.0, 1.0}},
-	}
-
-	indices := []u32{0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4}
+	attrib, shapes := model_load(MODEL_PATH)
+	resources.model = model_create(attrib, shapes)
 
 	resources.window = window_create(config.width, config.height, config.title)
 	resources.instance = instance_create(config.validation_layers_enabled)
@@ -142,13 +136,13 @@ renderer_resources_init :: proc(
 	resources.texture_sampler = texture_sampler_create(resources.device)
 	resources.vertex_buffer = buffer_vertex_create(
 		resources.device,
-		vertices,
+		resources.model.vertices[:],
 		resources.command_pool,
 		resources.vma_allocator,
 	)
 	resources.index_buffer = buffer_index_create(
 		resources.device,
-		indices,
+		resources.model.indices[:],
 		resources.command_pool,
 		resources.vma_allocator,
 	)
@@ -207,6 +201,10 @@ render :: proc(renderer: ^Renderer) -> bool {
 	if !frame_prepare(renderer) do return false
 	if !frame_render(renderer) do return false
 	if !frame_present(renderer) do return false
+
+	if renderer.state.current_frame == 1 {
+		window_toggle_visibility(renderer.resources.window)
+	}
 
 	renderer.state.current_frame =
 		(renderer.state.current_frame + 1) % MAX_FRAMES_IN_FLIGHT

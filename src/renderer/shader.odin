@@ -25,7 +25,7 @@ shaders_read :: proc(paths: []string) -> (Shaders, bool) {
 			shaders.fragment_shader = data
 		}
 
-		str := fmt.aprintf("%s loaded", path)
+		str := fmt.aprintf("Loaded shader: %s", path)
 		defer delete(str)
 
 		log(str)
@@ -69,8 +69,6 @@ shader_stage_create :: proc(
 	}
 }
 
-
-@(private = "file")
 read_file :: proc(path: string) -> ([]byte, bool) {
 	data, ok := os.read_entire_file(path, context.temp_allocator)
 	if !ok {
