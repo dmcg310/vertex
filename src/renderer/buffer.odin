@@ -53,6 +53,10 @@ buffer_vertex_create :: proc(
 	command_pool: CommandPool,
 	vma_allocator: VMAAllocator,
 ) -> VertexBuffer {
+	if len(vertices) == 0 {
+		return {}
+	}
+
 	buffer_size := vk.DeviceSize(size_of(Vertex) * len(vertices))
 
 	staging_buffer, staging_buffer_allocation := vma_buffer_create(
@@ -155,6 +159,10 @@ buffer_index_create :: proc(
 	command_pool: CommandPool,
 	vma_allocator: VMAAllocator,
 ) -> IndexBuffer {
+	if len(indices) == 0 {
+		return {}
+	}
+
 	buffer_size := vk.DeviceSize(size_of(u32) * len(indices))
 
 	staging_buffer, staging_buffer_allocation := vma_buffer_create(

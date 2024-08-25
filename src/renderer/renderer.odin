@@ -202,8 +202,9 @@ render :: proc(renderer: ^Renderer) -> bool {
 	if !frame_render(renderer) do return false
 	if !frame_present(renderer) do return false
 
-	if renderer.state.current_frame == 1 {
-		window_toggle_visibility(renderer.resources.window)
+	if renderer.state.current_frame == 1 &&
+	   renderer.resources.window.is_hidden {
+		window_toggle_visibility(&renderer.resources.window)
 	}
 
 	renderer.state.current_frame =

@@ -46,11 +46,13 @@ window_create :: proc(width, height: i32, title: string) -> Window {
 	return window
 }
 
-window_toggle_visibility :: proc(window: Window) {
+window_toggle_visibility :: proc(window: ^Window) {
 	if window.is_hidden {
 		glfw.ShowWindow(window.handle)
+		window.is_hidden = false
 	} else {
 		glfw.HideWindow(window.handle)
+		window.is_hidden = true
 	}
 }
 

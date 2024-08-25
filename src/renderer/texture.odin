@@ -35,7 +35,8 @@ texture_image_create :: proc(
 		4, // RGBA
 	)
 	if pixels == nil {
-		log_fatal(fmt.tprintf("Failed to load texture: %v", TEXTURE_PATH))
+		log(fmt.tprintf("Failed to load texture: %v", TEXTURE_PATH), "ERROR")
+		return {}
 	}
 	defer stb.image_free(pixels)
 
@@ -112,6 +113,10 @@ texture_image_view_create :: proc(
 	device: vk.Device,
 	texture_image: TextureImage,
 ) -> TextureImageView {
+	if texture_image == {} {
+		return {}
+	}
+
 	texture_image_view := TextureImageView{}
 
 	texture_image_view.view = image_view_create(
