@@ -52,7 +52,8 @@ def init_submodules():
 
 
 def build_imgui(force=False):
-    imgui_lib_path = os.path.join("external", "odin-imgui", "imgui_windows_x64.lib")
+    imgui_lib_path = os.path.join(
+        "external", "odin-imgui", "imgui_windows_x64.lib")
     if not force and os.path.exists(imgui_lib_path):
         print_script("ImGui already built, skipping...")
         return
@@ -118,11 +119,15 @@ def build_vma():
 
         os.chdir(current_dir)
 
-        src_lib = os.path.join(vma_path, "build", "src", "libVulkanMemoryAllocator.a")
-        dest_lib = os.path.join("external/odin-vma/", "libVulkanMemoryAllocator.a")
+        src_lib = os.path.join(vma_path, "build", "src",
+                               "libVulkanMemoryAllocator.a")
+        dest_lib = os.path.join(
+            current_dir, "external/odin-vma/external/libVulkanMemoryAllocator.a")
         subprocess.run(["cp", src_lib, dest_lib], check=True)
 
         print_script("Odin-VMA built successfully")
+
+        return True
     except subprocess.CalledProcessError as e:
         print_error(f"Failed to build Odin-VMA: {e}")
 
@@ -240,7 +245,8 @@ def main():
 
     compile_shaders()
 
-    binary_path = build_odin_project(debug=debug_mode, release=release_mode, profile=profile_mode)
+    binary_path = build_odin_project(
+        debug=debug_mode, release=release_mode, profile=profile_mode)
     run_binary(binary_path)
 
     print_script("Build process and execution completed")
