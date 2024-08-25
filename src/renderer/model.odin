@@ -48,9 +48,11 @@ NUM_THREADS :: 4
 model_load :: proc(path: string) -> (Attrib, []Shape) {
 	data, read_ok := read_file(path)
 	if !read_ok {
-		log(fmt.aprintf("Failed to read model: %v", path), "ERROR")
+		log(fmt.tprintf("Failed to read model: %v", path), "ERROR")
 		return {}, nil
 	}
+
+	log(fmt.tprintf("Loading model: %v", path))
 
 	lines := strings.split(string(data), "\n")
 	defer delete(lines)

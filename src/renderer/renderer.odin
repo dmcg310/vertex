@@ -75,6 +75,9 @@ renderer_resources_init :: proc(
 	resources: ^RendererResources,
 	config: RendererConfiguration,
 ) -> bool {
+	attrib, shapes := model_load(MODEL_PATH)
+	resources.model = model_create(attrib, shapes)
+
 	resources.window = window_create(config.width, config.height, config.title)
 	resources.instance = instance_create(config.validation_layers_enabled)
 	resources.device = device_create()
@@ -131,8 +134,6 @@ renderer_resources_init :: proc(
 		resources.texture_image,
 	)
 	resources.texture_sampler = texture_sampler_create(resources.device)
-	attrib, shapes := model_load(MODEL_PATH)
-	resources.model = model_create(attrib, shapes)
 	resources.vertex_buffer = buffer_vertex_create(
 		resources.device,
 		resources.model.vertices[:],
@@ -200,6 +201,10 @@ render :: proc(renderer: ^Renderer) -> bool {
 	if !frame_prepare(renderer) do return false
 	if !frame_render(renderer) do return false
 	if !frame_present(renderer) do return false
+
+	if renderer.state.current_frame == 1 {
+		window_toggle_visibility(renderer.resources.window)
+	}
 
 	renderer.state.current_frame =
 		(renderer.state.current_frame + 1) % MAX_FRAMES_IN_FLIGHT

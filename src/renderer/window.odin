@@ -1,12 +1,15 @@
 package renderer
 
-import "../util"
 import "vendor:glfw"
+
 import vk "vendor:vulkan"
+
+import "../util"
 
 Window :: struct {
 	handle:          glfw.WindowHandle,
 	surface_created: bool,
+	is_hidden:       bool,
 }
 
 is_framebuffer_resized: bool
@@ -19,6 +22,7 @@ window_create :: proc(width, height: i32, title: string) -> Window {
 	}
 
 	glfw.WindowHint(glfw.CLIENT_API, glfw.NO_API)
+	glfw.WindowHint(glfw.VISIBLE, glfw.FALSE)
 
 	if window.handle = glfw.CreateWindow(
 		width,
@@ -35,9 +39,19 @@ window_create :: proc(width, height: i32, title: string) -> Window {
 	glfw.SetFramebufferSizeCallback(window.handle, framebuffer_size_callback)
 	glfw.SetKeyCallback(window.handle, key_callback)
 
+	window.is_hidden = true
+
 	log("Window created")
 
 	return window
+}
+
+window_toggle_visibility :: proc(window: Window) {
+	if window.is_hidden {
+		glfw.ShowWindow(window.handle)
+	} else {
+		glfw.HideWindow(window.handle)
+	}
 }
 
 window_get_framebuffer_size :: proc(window: Window) -> (i32, i32) {
