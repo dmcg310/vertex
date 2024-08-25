@@ -26,18 +26,16 @@ texture_image_create :: proc(
 ) -> TextureImage {
 	texture_image := TextureImage{}
 
-	path: cstring = "assets/textures/max.jpg"
-
 	texture_width, texture_height, texture_channels: i32
 	pixels := stb.load(
-		path,
+		TEXTURE_PATH,
 		&texture_width,
 		&texture_height,
 		&texture_channels,
 		4, // RGBA
 	)
 	if pixels == nil {
-		log_fatal(fmt.tprintf("Failed to load texture: %v", path))
+		log_fatal(fmt.tprintf("Failed to load texture: %v", TEXTURE_PATH))
 	}
 	defer stb.image_free(pixels)
 
@@ -98,7 +96,7 @@ texture_image_create :: proc(
 		graphics_queue,
 	)
 
-	log(fmt.tprintf("Loaded texture: %v", path))
+	log(fmt.tprintf("Loaded texture: %v", TEXTURE_PATH))
 
 	return texture_image
 }
