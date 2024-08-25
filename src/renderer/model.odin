@@ -34,13 +34,15 @@ model_load :: proc(path: string) -> (Attrib, []Shape) {
 	}
 
 	attrib := Attrib {
-		vertices   = make([dynamic]f32),
-		normals    = make([dynamic]f32),
-		tex_coords = make([dynamic]f32),
+		vertices   = make([dynamic]f32, context.temp_allocator),
+		normals    = make([dynamic]f32, context.temp_allocator),
+		tex_coords = make([dynamic]f32, context.temp_allocator),
 	}
 
-	shapes := make([dynamic]Shape)
-	current_shape := Shape{}
+	shapes := make([dynamic]Shape, context.temp_allocator)
+	current_shape := Shape {
+		indices = make([dynamic]Index, 0, 1024, context.temp_allocator),
+	}
 
 	lines := strings.split(string(data), "\n")
 	defer delete(lines)
@@ -96,11 +98,21 @@ model_load :: proc(path: string) -> (Attrib, []Shape) {
 		case "o", "g":
 			if len(current_shape.indices) > 0 {
 				append(&shapes, current_shape)
-				current_shape = {}
+				current_shape = Shape {
+					indices = make(
+						[dynamic]Index,
+						1024,
+						context.temp_allocator,
+					),
+				}
 			}
 
 			if len(parts) > 1 {
-				current_shape.name = strings.join(parts[1:], " ")
+				current_shape.name = strings.join(
+					parts[1:],
+					" ",
+					context.temp_allocator,
+				)
 			}
 		}
 	}
@@ -109,15 +121,15 @@ model_load :: proc(path: string) -> (Attrib, []Shape) {
 		append(&shapes, current_shape)
 	}
 
-	log(fmt.aprintf("Loaded model: %v", path))
+	log(fmt.tprintf("Loaded model: %v", path))
 
 	return attrib, shapes[:]
 }
 
 model_create :: proc(attrib: Attrib, shapes: []Shape) -> Model {
 	model := Model {
-		vertices = make([dynamic]Vertex),
-		indices  = make([dynamic]u32),
+		vertices = make([dynamic]Vertex, context.temp_allocator),
+		indices  = make([dynamic]u32, context.temp_allocator),
 	}
 
 	for shape in shapes {
