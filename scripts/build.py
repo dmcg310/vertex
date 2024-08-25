@@ -78,6 +78,57 @@ def build_imgui(force=False):
         os.chdir("../..")
 
 
+def build_vma():
+    print_script("Building Odin-VMA backend...")
+
+    current_dir = os.getcwd()
+    vma_path = os.path.join("external", "odin-vma", "VulkanMemoryAllocator")
+    build_path = os.path.join(vma_path, "build")
+
+    if not os.path.exists(vma_path):
+        print_error(
+            "VulkanMemoryAllocator directory not found. Ensure the submodule is initialized."
+        )
+        return False
+
+    try:
+        os.makedirs(build_path, exist_ok=True)
+
+        os.chdir(vma_path)
+
+        cmake_cmd = [
+            "cmake",
+            "-S",
+            ".",
+            "-B",
+            "build",
+            "-DCMAKE_BUILD_TYPE=Release",
+            "-DVMA_STATIC_VULKAN_FUNCTIONS=OFF",
+            "-DVMA_DYNAMIC_VULKAN_FUNCTIONS=OFF",
+        ]
+        subprocess.run(cmake_cmd, check=True, stdout=subprocess.DEVNULL)
+
+        os.chdir("build")
+
+        subprocess.run(
+            ["make"],
+            check=True,
+            stdout=subprocess.DEVNULL,
+        )
+
+        os.chdir(current_dir)
+
+        src_lib = os.path.join(vma_path, "build", "src", "libVulkanMemoryAllocator.a")
+        dest_lib = os.path.join("external/odin-vma/", "libVulkanMemoryAllocator.a")
+        subprocess.run(["cp", src_lib, dest_lib], check=True)
+
+        print_script("Odin-VMA built successfully")
+    except subprocess.CalledProcessError as e:
+        print_error(f"Failed to build Odin-VMA: {e}")
+
+        return False
+
+
 def build_odin_project(debug=True, release=False, profile=False):
     print_script(f"Building Odin project in {'debug' if debug else 'release'} mode...")
 
@@ -182,6 +233,10 @@ def main():
         build_imgui(force=True)
     else:
         build_imgui()
+
+    if sys.platform == "linux":
+        if not build_vma():
+            sys.exit(1)
 
     compile_shaders()
 
