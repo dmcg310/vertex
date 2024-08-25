@@ -132,6 +132,8 @@ model_create :: proc(attrib: Attrib, shapes: []Shape) -> Model {
 		indices  = make([dynamic]u32, context.temp_allocator),
 	}
 
+	unique_vertices := make(map[Vertex]u32, 1024, context.temp_allocator)
+
 	for shape in shapes {
 		for index in shape.indices {
 			pos_x := attrib.vertices[3 * (index.vertex_index - 1)]
@@ -161,8 +163,15 @@ model_create :: proc(attrib: Attrib, shapes: []Shape) -> Model {
 				color    = {1, 1, 1},
 			}
 
-			append(&model.vertices, vertex)
-			append(&model.indices, u32(len(model.vertices) - 1))
+			if existing_index, ok := unique_vertices[vertex]; ok {
+				append(&model.indices, existing_index)
+			} else {
+				new_index := u32(len(model.vertices))
+				unique_vertices[vertex] = new_index
+
+				append(&model.vertices, vertex)
+				append(&model.indices, new_index)
+			}
 		}
 	}
 
