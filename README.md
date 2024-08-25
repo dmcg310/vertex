@@ -7,8 +7,9 @@ Vertex is a Vulkan-based renderer.
 - Vulkan initialization and setup
 - GPU memory management using `VulkanMemoryAllocator` (VMA)
 - Shader compilation (vertex and fragment shaders)
+- Multithreaded, native, OBJ model loading.
 - Imgui integration
-- File and console based logging
+- File and console-based logging
 - Profiling with Spall
 
 ## Prerequisites
@@ -31,6 +32,7 @@ Ensure that both Odin and Vulkan SDK are properly installed and their paths are 
 │   └── compile.sh
 ├── assets\
 │   ├── shaders\    # GLSL shader files
+│   ├── models\    # .obj model files
 │   └── textures\    # Texture files
 ├── bin\    # Output directory for compiled binary
 └── external\    # External dependencies
