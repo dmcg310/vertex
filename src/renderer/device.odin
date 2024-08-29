@@ -162,8 +162,6 @@ device_logical_create :: proc(
 		&device.present_queue,
 	)
 
-	vk.load_proc_addresses(device.logical_device)
-
 	log("Vulkan logical device created")
 }
 

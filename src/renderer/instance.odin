@@ -46,7 +46,10 @@ when ODIN_OS == .Windows {
 }
 
 instance_create :: proc(enable_validation_layers: bool) -> Instance {
-	vk.load_proc_addresses((rawptr)(glfw.GetInstanceProcAddress))
+	get_global_proc_address :: proc(p: rawptr, name: cstring) {
+		(cast(^rawptr)p)^ = glfw.GetInstanceProcAddress(nil, name)
+	}
+	vk.load_proc_addresses_custom(get_global_proc_address)
 
 	instance := Instance {
 		validation_layers_enabled = enable_validation_layers,
@@ -107,6 +110,8 @@ instance_create :: proc(enable_validation_layers: bool) -> Instance {
 	if enable_validation_layers {
 		setup_debug_messenger(&instance)
 	}
+
+	vk.load_proc_addresses_instance(instance.instance)
 
 	log("Vulkan instance created")
 
