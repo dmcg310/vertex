@@ -34,7 +34,6 @@ RendererResources :: struct {
 	descriptor_sets:       DescriptorSets,
 	command_buffers:       CommandBuffers,
 	sync_objects:          SyncObject,
-	imgui:                 ImGuiState,
 }
 
 RendererState :: struct {
@@ -168,7 +167,7 @@ renderer_resources_init :: proc(
 	resources.sync_objects = sync_objects_create(
 		resources.device.logical_device,
 	)
-	resources.imgui = imgui_init(
+	imgui_init(
 		resources.window.handle,
 		resources.pipeline.render_pass,
 		resources.device,
@@ -176,6 +175,7 @@ renderer_resources_init :: proc(
 		u32(len(resources.swap_chain.images)),
 		resources.swap_chain.format.format,
 		resources.command_pool.pool,
+		&resources.descriptor_pool,
 	)
 
 	vma_print_stats(resources.vma_allocator)
@@ -317,7 +317,7 @@ resources_destroy :: proc(resources: ^RendererResources) {
 
 	device_wait_idle(device)
 
-	imgui_destroy(device, resources.imgui)
+	imgui_destroy(device)
 	sync_objects_destroy(&resources.sync_objects, device)
 	descriptor_pool_destroy(device, resources.descriptor_pool)
 	buffer_uniforms_destroy(

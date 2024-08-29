@@ -7,7 +7,8 @@ DescriptorSetlayout :: struct {
 }
 
 DescriptorPool :: struct {
-	pool: vk.DescriptorPool,
+	pool:       vk.DescriptorPool,
+	imgui_pool: vk.DescriptorPool,
 }
 
 DescriptorSets :: []vk.DescriptorSet
@@ -100,7 +101,41 @@ descriptor_pool_create :: proc(device: vk.Device) -> DescriptorPool {
 		log_fatal_with_vk_result("Failed to create descriptor pool", result)
 	}
 
-	log("Vulkan descriptor pool created")
+	imgui_pool_sizes := []vk.DescriptorPoolSize {
+		{type = .SAMPLER, descriptorCount = 1000},
+		{type = .COMBINED_IMAGE_SAMPLER, descriptorCount = 1000},
+		{type = .SAMPLED_IMAGE, descriptorCount = 1000},
+		{type = .STORAGE_IMAGE, descriptorCount = 1000},
+		{type = .UNIFORM_TEXEL_BUFFER, descriptorCount = 1000},
+		{type = .STORAGE_TEXEL_BUFFER, descriptorCount = 1000},
+		{type = .UNIFORM_BUFFER, descriptorCount = 1000},
+		{type = .STORAGE_BUFFER, descriptorCount = 1000},
+		{type = .UNIFORM_BUFFER_DYNAMIC, descriptorCount = 1000},
+		{type = .STORAGE_BUFFER_DYNAMIC, descriptorCount = 1000},
+		{type = .INPUT_ATTACHMENT, descriptorCount = 1000},
+	}
+
+	imgui_pool_info := vk.DescriptorPoolCreateInfo {
+		sType         = .DESCRIPTOR_POOL_CREATE_INFO,
+		flags         = {.FREE_DESCRIPTOR_SET},
+		maxSets       = 1000 * u32(len(imgui_pool_sizes)),
+		poolSizeCount = u32(len(imgui_pool_sizes)),
+		pPoolSizes    = raw_data(imgui_pool_sizes),
+	}
+
+	if result := vk.CreateDescriptorPool(
+		device,
+		&imgui_pool_info,
+		nil,
+		&descriptor_pool.imgui_pool,
+	); result != .SUCCESS {
+		log_fatal_with_vk_result(
+			"Failed to create imgui descriptor pool",
+			result,
+		)
+	}
+
+	log("Vulkan and ImGui descriptor pools created")
 
 	return descriptor_pool
 }
@@ -110,6 +145,7 @@ descriptor_pool_destroy :: proc(
 	descriptor_pool: DescriptorPool,
 ) {
 	vk.DestroyDescriptorPool(device, descriptor_pool.pool, nil)
+	vk.DestroyDescriptorPool(device, descriptor_pool.imgui_pool, nil)
 
 	log("Vulkan descriptor pool destroyed")
 }
