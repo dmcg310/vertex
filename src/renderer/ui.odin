@@ -1,16 +1,19 @@
 package renderer
 
 import "base:runtime"
-import "vendor:glfw"
 
 import im "../../external/odin-imgui"
 import vk "vendor:vulkan"
 
 import "../../external/odin-imgui/imgui_impl_glfw"
 import "../../external/odin-imgui/imgui_impl_vulkan"
+import "../util"
 
 @(private = "file")
 _resources: RendererResources
+
+@(private = "file")
+cached_model_names: []string
 
 restore_ui_size_defaults: bool = true
 
@@ -79,6 +82,8 @@ imgui_init :: proc(resources: RendererResources) {
 	)
 	imgui_impl_vulkan.DestroyFontsTexture()
 
+	get_model_names()
+
 	log("ImGui context initialized")
 }
 
@@ -112,7 +117,24 @@ imgui_new_frame :: proc() {
 	}
 
 	if im.Begin("Options", nil, window_flags) {
-		im.Text("These are the options")
+		im.Text("Options")
+
+		if im.CollapsingHeader("Assets") {
+			if im.TreeNode("Models") {
+				im.SeparatorText("assets/models/")
+
+				if len(cached_model_names) == 0 {
+					im.Selectable("No models found", false, {.Disabled})
+				}
+
+				for name in cached_model_names {
+					im.Selectable(util.to_cstring(name))
+				}
+
+				im.Spacing()
+				im.TreePop()
+			}
+		}
 	}
 	im.End()
 }
@@ -140,6 +162,18 @@ imgui_destroy :: proc(device: vk.Device) {
 	im.DestroyContext()
 
 	log("ImGui context destroyed")
+}
+
+@(private = "file")
+get_model_names :: proc() {
+	model_dir_entries, list_ok, error := util.list_entries_in_dir(
+		"assets/models/",
+	)
+	if !list_ok {
+		log(error, "WARNING")
+	}
+
+	cached_model_names = model_entries_filter(model_dir_entries)
 }
 
 @(private = "file")

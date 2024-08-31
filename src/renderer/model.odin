@@ -1,6 +1,8 @@
 package renderer
 
 import "core:fmt"
+import "core:os"
+import "core:path/filepath"
 import "core:strconv"
 import "core:strings"
 import "core:thread"
@@ -173,6 +175,29 @@ model_create :: proc(attrib: Attrib, shapes: []Shape) -> Model {
 	}
 
 	return model
+}
+
+model_entries_filter :: proc(entries: []string) -> []string {
+	res := make([dynamic]string, 0, len(entries), context.temp_allocator)
+	for entry in entries {
+		base := filepath.base(entry)
+
+		if os.is_dir(base) {
+			continue
+		}
+
+		if !strings.has_suffix(entry, ".obj") {
+			continue
+		}
+
+		if base == "" || base == " " {
+			continue
+		}
+
+		append(&res, filepath.base(entry))
+	}
+
+	return res[:]
 }
 
 @(private = "file")

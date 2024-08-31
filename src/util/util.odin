@@ -1,5 +1,7 @@
 package util
 
+import "core:fmt"
+import "core:os"
 import "core:strings"
 
 to_cstring :: proc(s: string) -> cstring {
@@ -27,4 +29,30 @@ dynamic_array_of_strings_to_cstrings :: proc(
 	}
 
 	return result
+}
+
+list_entries_in_dir :: proc(
+	dir: string,
+) -> (
+	entries: []string,
+	ok: bool,
+	error: string,
+) {
+	handle, open_err := os.open(dir)
+	if open_err != 0 {
+		return nil, false, fmt.tprintf("Failed to read: %v", dir)
+	}
+	defer os.close(handle)
+
+	fi, read_err := os.read_dir(handle, 100, context.temp_allocator)
+	if read_err != 0 {
+		return nil, false, fmt.tprintf("Failed to read: %v", dir)
+	}
+
+	res := make([dynamic]string, len(entries), context.temp_allocator)
+	for entry in fi {
+		append(&res, entry.fullpath)
+	}
+
+	return res[:], true, ""
 }

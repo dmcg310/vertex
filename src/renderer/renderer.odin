@@ -2,8 +2,6 @@ package renderer
 
 import "core:sync"
 
-import im "../../external/odin-imgui"
-
 Renderer :: struct {
 	resources:     RendererResources,
 	state:         RendererState,
