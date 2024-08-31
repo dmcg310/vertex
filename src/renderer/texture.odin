@@ -2,6 +2,9 @@ package renderer
 
 import "core:fmt"
 import "core:mem"
+import "core:os"
+import "core:path/filepath"
+import "core:strings"
 
 import stb "vendor:stb/image"
 import vk "vendor:vulkan"
@@ -211,6 +214,30 @@ image_view_create :: proc(
 	}
 
 	return image_view
+}
+
+texture_entries_filter :: proc(entries: []string) -> []string {
+	res := make([dynamic]string, 0, len(entries), context.temp_allocator)
+	for entry in entries {
+		base := filepath.base(entry)
+
+		if os.is_dir(base) {
+			continue
+		}
+
+		if strings.has_suffix(base, ".png") ||
+		   strings.has_suffix(base, ".jpg") ||
+		   strings.has_suffix(base, ".tga") ||
+		   strings.has_suffix(base, ".dds") ||
+		   strings.has_suffix(base, ".bmp") ||
+		   strings.has_suffix(base, ".jpeg") {
+			if base != "" && base != " " {
+				append(&res, base)
+			}
+		}
+	}
+
+	return res[:]
 }
 
 @(private = "file")

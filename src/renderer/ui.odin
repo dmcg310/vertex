@@ -18,6 +18,9 @@ cached_model_names: []string
 @(private = "file")
 cached_shader_names: []string
 
+@(private = "file")
+cached_texture_names: []string
+
 restore_ui_size_defaults: bool = true
 
 imgui_init :: proc(resources: RendererResources) {
@@ -87,6 +90,7 @@ imgui_init :: proc(resources: RendererResources) {
 
 	cache_entries("assets/models", "Models")
 	cache_entries("assets/shaders", "Shaders")
+	cache_entries("assets/textures", "Textures")
 
 	log("ImGui context initialized")
 }
@@ -129,6 +133,11 @@ imgui_new_frame :: proc() {
 				"Shaders",
 				"assets/shaders",
 				cached_shader_names,
+			)
+			append_assets_node(
+				"Textures",
+				"assets/textures",
+				cached_texture_names,
 			)
 		}
 	}
@@ -190,6 +199,8 @@ cache_entries :: proc(path: string, name: string) {
 		cached_model_names = model_entries_filter(entries)
 	case "Shaders":
 		cached_shader_names = shader_entries_filter(entries)
+	case "Textures":
+		cached_texture_names = texture_entries_filter(entries)
 	}
 }
 
