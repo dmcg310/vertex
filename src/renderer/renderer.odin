@@ -167,16 +167,7 @@ renderer_resources_init :: proc(
 	resources.sync_objects = sync_objects_create(
 		resources.device.logical_device,
 	)
-	imgui_init(
-		resources.window.handle,
-		resources.pipeline.render_pass,
-		resources.device,
-		resources.instance.instance,
-		u32(len(resources.swap_chain.images)),
-		resources.swap_chain.format.format,
-		resources.command_pool.pool,
-		&resources.descriptor_pool,
-	)
+	imgui_init(resources^)
 
 	vma_print_stats(resources.vma_allocator)
 	device_print_properties(resources.device.physical_device)
@@ -195,7 +186,7 @@ render :: proc(renderer: ^Renderer) -> bool {
 	}
 
 	if is_framebuffer_resized {
-		swap_chain_recreate(renderer)
+		swap_chain_recreate(&renderer.resources)
 	}
 
 	if !frame_prepare(renderer) do return false
@@ -222,13 +213,13 @@ frame_prepare :: proc(renderer: ^Renderer) -> bool {
 	swap_chain := renderer.resources.swap_chain
 
 	if !sync_wait(device, &fence) {
-		swap_chain_recreate(renderer)
+		swap_chain_recreate(&renderer.resources)
 		return false
 	}
 
 	image_index, ok := swap_chain_get_next_image(device, swap_chain, semaphore)
 	if !ok {
-		swap_chain_recreate(renderer)
+		swap_chain_recreate(&renderer.resources)
 		return false
 	}
 
@@ -255,7 +246,6 @@ frame_render :: proc(renderer: ^Renderer) -> bool {
 	command_buffer_reset(command_buffer)
 
 	imgui_new_frame()
-	im.ShowDemoWindow()
 
 	record_ok := command_buffer_record(
 		command_buffer,

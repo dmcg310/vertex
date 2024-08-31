@@ -9,31 +9,29 @@ import vk "vendor:vulkan"
 import "../../external/odin-imgui/imgui_impl_glfw"
 import "../../external/odin-imgui/imgui_impl_vulkan"
 
-imgui_init :: proc(
-	window: glfw.WindowHandle,
-	render_pass: vk.RenderPass,
-	device: Device,
-	instance: vk.Instance,
-	swap_chain_image_count: u32,
-	swap_chain_format: vk.Format,
-	command_pool: vk.CommandPool,
-	descriptor_pool: ^DescriptorPool,
-) {
+@(private = "file")
+_resources: RendererResources
+
+imgui_init :: proc(resources: RendererResources) {
+	_resources = resources
+
 	im.CHECKVERSION()
 	im.CreateContext()
 	io := im.GetIO()
 	io.IniFilename = nil
-	io.ConfigFlags += {.NavEnableKeyboard, .NavEnableGamepad, .DockingEnable}
+	io.ConfigFlags += {.NavEnableKeyboard, .NavEnableGamepad}
+	when im.IMGUI_BRANCH == "docking" {
+		io.ConfigFlags += {.DockingEnable}
+		io.ConfigFlags += {.ViewportsEnable}
 
-	im.StyleColorsDark()
-
-	style := im.GetStyle()
-	if .ViewportsEnable in io.ConfigFlags {
+		style := im.GetStyle()
 		style.WindowRounding = 0
 		style.Colors[im.Col.WindowBg].w = 1
 	}
 
-	imgui_impl_glfw.InitForVulkan(window, true)
+	im.StyleColorsDark()
+
+	imgui_impl_glfw.InitForVulkan(resources.window.handle, true)
 
 	imgui_impl_vulkan.LoadFunctions(
 		proc "c" (
@@ -45,36 +43,36 @@ imgui_init :: proc(
 				function_name,
 			)
 		},
-		rawptr(instance),
+		rawptr(resources.instance.instance),
 	)
 
 	init_info := imgui_impl_vulkan.InitInfo {
-		Instance              = instance,
-		PhysicalDevice        = device.physical_device,
-		Device                = device.logical_device,
-		QueueFamily           = device.graphics_family_index,
-		Queue                 = device.graphics_queue,
+		Instance              = resources.instance.instance,
+		PhysicalDevice        = resources.device.physical_device,
+		Device                = resources.device.logical_device,
+		QueueFamily           = resources.device.graphics_family_index,
+		Queue                 = resources.device.graphics_queue,
 		PipelineCache         = {},
-		DescriptorPool        = descriptor_pool.imgui_pool,
-		MinImageCount         = swap_chain_image_count,
-		ImageCount            = swap_chain_image_count,
+		DescriptorPool        = resources.descriptor_pool.imgui_pool,
+		MinImageCount         = u32(len(resources.swap_chain.images)),
+		ImageCount            = u32(len(resources.swap_chain.images)),
 		MSAASamples           = vk.SampleCountFlags{._1},
 		Allocator             = nil,
 		CheckVkResultFn       = check_vk_result,
-		ColorAttachmentFormat = swap_chain_format,
+		ColorAttachmentFormat = resources.swap_chain.format.format,
 	}
-	imgui_impl_vulkan.Init(&init_info, render_pass)
+	imgui_impl_vulkan.Init(&init_info, resources.pipeline.render_pass)
 
 	command_buffer := command_begin_single_time(
-		device.logical_device,
-		command_pool,
+		resources.device.logical_device,
+		resources.command_pool.pool,
 	)
 	imgui_impl_vulkan.CreateFontsTexture()
 
 	command_end_single_time(
-		device.logical_device,
-		command_pool,
-		device.graphics_queue,
+		resources.device.logical_device,
+		resources.command_pool.pool,
+		resources.device.graphics_queue,
 		&command_buffer,
 	)
 	imgui_impl_vulkan.DestroyFontsTexture()
@@ -86,11 +84,41 @@ imgui_new_frame :: proc() {
 	imgui_impl_vulkan.NewFrame()
 	imgui_impl_glfw.NewFrame()
 	im.NewFrame()
+
+	dockspace_flags: im.DockNodeFlags = {.PassthruCentralNode}
+	window_flags: im.WindowFlags = {.MenuBar}
+
+	viewport := im.GetMainViewport()
+	im.SetNextWindowPos(viewport.Pos)
+	im.SetNextWindowSize(viewport.Size)
+	im.SetNextWindowViewport(viewport._ID)
+
+	im.Begin("Dockspace", nil, window_flags)
+
+	dockspace_id := im.GetID("Dockspace")
+	im.DockSpace(dockspace_id, {200, 0}, dockspace_flags)
+
+	if im.Begin("Window 1") {
+		im.Text("This is window 1")
+	}
+	im.End()
+
+	if im.Begin("Window 2") {
+		im.Text("This is window 2")
+	}
+	im.End()
+
+	im.End()
 }
 
 imgui_render :: proc(command_buffer: vk.CommandBuffer) {
 	im.Render()
 	imgui_impl_vulkan.RenderDrawData(im.GetDrawData(), command_buffer)
+
+	when im.IMGUI_BRANCH == "docking" {
+		im.UpdatePlatformWindows()
+		im.RenderPlatformWindowsDefault()
+	}
 }
 
 imgui_update_platform_windows :: proc() {

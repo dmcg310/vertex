@@ -238,55 +238,55 @@ swap_chain_present :: proc(
 	return true
 }
 
-swap_chain_recreate :: proc(renderer: ^Renderer) {
+swap_chain_recreate :: proc(renderer_resources: ^RendererResources) {
 	log("Recreating swap chain due to framebuffer resize")
 
 	width, height: i32 = 0, 0
 	for width == 0 || height == 0 {
-		width, height = window_get_framebuffer_size(renderer.resources.window)
+		width, height = window_get_framebuffer_size(renderer_resources.window)
 		window_wait_events()
 	}
 
-	device_wait_idle(renderer.resources.device.logical_device)
+	device_wait_idle(renderer_resources.device.logical_device)
 
 	swap_chain_cleanup(
-		&renderer.resources.framebuffer_manager,
-		renderer.resources.device.logical_device,
-		renderer.resources.swap_chain,
-		renderer.resources.pipeline,
-		renderer.resources.vma_allocator,
-		renderer.resources.depth_image,
-		renderer.resources.depth_image_view,
+		&renderer_resources.framebuffer_manager,
+		renderer_resources.device.logical_device,
+		renderer_resources.swap_chain,
+		renderer_resources.pipeline,
+		renderer_resources.vma_allocator,
+		renderer_resources.depth_image,
+		renderer_resources.depth_image_view,
 	)
 
-	renderer.resources.swap_chain = swap_chain_create(
-		renderer.resources.device,
-		renderer.resources.surface,
-		&renderer.resources.window,
+	renderer_resources.swap_chain = swap_chain_create(
+		renderer_resources.device,
+		renderer_resources.surface,
+		&renderer_resources.window,
 	)
 
-	renderer.resources.pipeline = pipeline_create(
-		renderer.resources.swap_chain,
-		renderer.resources.device,
-		&renderer.resources.descriptor_set_layout,
+	renderer_resources.pipeline = pipeline_create(
+		renderer_resources.swap_chain,
+		renderer_resources.device,
+		&renderer_resources.descriptor_set_layout,
 	)
 
-	renderer.resources.depth_image, renderer.resources.depth_image_view =
+	renderer_resources.depth_image, renderer_resources.depth_image_view =
 		depth_resources_create(
-			renderer.resources.device,
-			renderer.resources.swap_chain,
-			renderer.resources.vma_allocator,
+			renderer_resources.device,
+			renderer_resources.swap_chain,
+			renderer_resources.vma_allocator,
 		)
 
-	renderer.resources.framebuffer_manager = framebuffer_manager_create(
-		renderer.resources.swap_chain,
-		renderer.resources.pipeline.render_pass,
-		renderer.resources.depth_image_view,
+	renderer_resources.framebuffer_manager = framebuffer_manager_create(
+		renderer_resources.swap_chain,
+		renderer_resources.pipeline.render_pass,
+		renderer_resources.depth_image_view,
 	)
 
-	renderer.resources.command_buffers = command_buffers_create(
-		renderer.resources.device.logical_device,
-		renderer.resources.command_pool,
+	renderer_resources.command_buffers = command_buffers_create(
+		renderer_resources.device.logical_device,
+		renderer_resources.command_pool,
 	)
 
 	is_framebuffer_resized = false
