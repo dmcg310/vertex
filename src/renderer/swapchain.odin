@@ -290,6 +290,7 @@ swap_chain_recreate :: proc(renderer_resources: ^RendererResources) {
 	)
 
 	is_framebuffer_resized = false
+	restore_ui_size_defaults = true
 }
 
 @(private = "file")

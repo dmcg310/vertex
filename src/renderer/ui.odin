@@ -12,6 +12,8 @@ import "../../external/odin-imgui/imgui_impl_vulkan"
 @(private = "file")
 _resources: RendererResources
 
+restore_ui_size_defaults: bool = true
+
 imgui_init :: proc(resources: RendererResources) {
 	_resources = resources
 
@@ -86,28 +88,37 @@ imgui_new_frame :: proc() {
 	im.NewFrame()
 
 	dockspace_flags: im.DockNodeFlags = {.PassthruCentralNode}
-	window_flags: im.WindowFlags = {.MenuBar}
+	window_flags: im.WindowFlags = {.NoMove, .NoTitleBar}
 
 	viewport := im.GetMainViewport()
-	im.SetNextWindowPos(viewport.Pos)
-	im.SetNextWindowSize(viewport.Size)
-	im.SetNextWindowViewport(viewport._ID)
+
+	if restore_ui_size_defaults {
+		window_size: Vec2
+		window_pos: Vec2
+
+		window_size.x = viewport.Size.x * 0.10
+		window_size.y = viewport.Size.y
+		window_pos.x = viewport.Pos.x
+		window_pos.y = viewport.Pos.y
+
+		im.SetNextWindowPos(window_pos)
+		im.SetNextWindowSize(window_size)
+		im.SetNextWindowViewport(viewport._ID)
+
+		restore_ui_size_defaults = false
+	} else {
+		im.SetNextWindowViewport(viewport._ID)
+	}
 
 	im.Begin("Dockspace", nil, window_flags)
+	defer im.End()
 
 	dockspace_id := im.GetID("Dockspace")
-	im.DockSpace(dockspace_id, {200, 0}, dockspace_flags)
+	im.DockSpace(dockspace_id, {0, 0}, dockspace_flags)
 
-	if im.Begin("Window 1") {
+	if im.Begin("Window 1", nil) {
 		im.Text("This is window 1")
 	}
-	im.End()
-
-	if im.Begin("Window 2") {
-		im.Text("This is window 2")
-	}
-	im.End()
-
 	im.End()
 }
 
