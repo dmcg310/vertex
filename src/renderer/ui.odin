@@ -15,6 +15,9 @@ _resources: RendererResources
 @(private = "file")
 cached_model_names: []string
 
+@(private = "file")
+cached_shader_names: []string
+
 restore_ui_size_defaults: bool = true
 
 imgui_init :: proc(resources: RendererResources) {
@@ -82,7 +85,8 @@ imgui_init :: proc(resources: RendererResources) {
 	)
 	imgui_impl_vulkan.DestroyFontsTexture()
 
-	get_model_names()
+	cache_entries("assets/models", "Models")
+	cache_entries("assets/shaders", "Shaders")
 
 	log("ImGui context initialized")
 }
@@ -120,20 +124,12 @@ imgui_new_frame :: proc() {
 		im.Text("Options")
 
 		if im.CollapsingHeader("Assets") {
-			if im.TreeNode("Models") {
-				im.SeparatorText("assets/models/")
-
-				if len(cached_model_names) == 0 {
-					im.Selectable("No models found", false, {.Disabled})
-				}
-
-				for name in cached_model_names {
-					im.Selectable(util.to_cstring(name))
-				}
-
-				im.Spacing()
-				im.TreePop()
-			}
+			append_assets_node("Models", "assets/models", cached_model_names)
+			append_assets_node(
+				"Shaders",
+				"assets/shaders",
+				cached_shader_names,
+			)
 		}
 	}
 	im.End()
@@ -165,15 +161,36 @@ imgui_destroy :: proc(device: vk.Device) {
 }
 
 @(private = "file")
-get_model_names :: proc() {
-	model_dir_entries, list_ok, error := util.list_entries_in_dir(
-		"assets/models/",
-	)
+append_assets_node :: proc(name, seperator_text: cstring, entries: []string) {
+	if im.TreeNode(name) {
+		im.SeparatorText(seperator_text)
+
+		if len(entries) == 0 {
+			im.Selectable("None found!", false, {.Disabled})
+		}
+
+		for name in entries {
+			im.Selectable(util.to_cstring(name))
+		}
+
+		im.Spacing()
+		im.TreePop()
+	}
+}
+
+@(private = "file")
+cache_entries :: proc(path: string, name: string) {
+	entries, list_ok, error := util.list_entries_in_dir(path)
 	if !list_ok {
 		log(error, "WARNING")
 	}
 
-	cached_model_names = model_entries_filter(model_dir_entries)
+	switch name {
+	case "Models":
+		cached_model_names = model_entries_filter(entries)
+	case "Shaders":
+		cached_shader_names = shader_entries_filter(entries)
+	}
 }
 
 @(private = "file")

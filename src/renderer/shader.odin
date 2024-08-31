@@ -2,6 +2,8 @@ package renderer
 
 import "core:fmt"
 import "core:os"
+import "core:path/filepath"
+import "core:strings"
 
 import vk "vendor:vulkan"
 
@@ -81,4 +83,24 @@ read_file :: proc(path: string) -> ([]byte, bool) {
 	}
 
 	return data, true
+}
+
+shader_entries_filter :: proc(entries: []string) -> []string {
+	res := make([dynamic]string, 0, len(entries), context.temp_allocator)
+	for entry in entries {
+		base := filepath.base(entry)
+
+		if os.is_dir(base) {
+			continue
+		}
+
+		if strings.has_suffix(base, ".vert") ||
+		   strings.has_suffix(base, ".frag") {
+			if base != "" && base != " " {
+				append(&res, base)
+			}
+		}
+	}
+
+	return res[:]
 }
