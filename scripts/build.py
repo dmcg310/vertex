@@ -52,8 +52,7 @@ def init_submodules():
 
 
 def build_imgui(force=False):
-    imgui_lib_path = os.path.join(
-        "external", "odin-imgui", "imgui_windows_x64.lib")
+    imgui_lib_path = os.path.join("external", "odin-imgui", "imgui_windows_x64.lib")
     if not force and os.path.exists(imgui_lib_path):
         print_script("ImGui already built, skipping...")
         return
@@ -80,7 +79,11 @@ def build_imgui(force=False):
 
 
 def build_vma():
-    print_script("Building Odin-VMA backend...")
+    if os.path.exists("external/odin-vma/external/libVulkanMemoryAllocator.a"):
+        print_script("Odin-VMA backend already built, skipping...")
+        return True
+    else:
+        print_script("Building Odin-VMA backend...")
 
     current_dir = os.getcwd()
     vma_path = os.path.join("external", "odin-vma", "VulkanMemoryAllocator")
@@ -119,10 +122,10 @@ def build_vma():
 
         os.chdir(current_dir)
 
-        src_lib = os.path.join(vma_path, "build", "src",
-                               "libVulkanMemoryAllocator.a")
+        src_lib = os.path.join(vma_path, "build", "src", "libVulkanMemoryAllocator.a")
         dest_lib = os.path.join(
-            current_dir, "external/odin-vma/external/libVulkanMemoryAllocator.a")
+            current_dir, "external/odin-vma/external/libVulkanMemoryAllocator.a"
+        )
         subprocess.run(["cp", src_lib, dest_lib], check=True)
 
         print_script("Odin-VMA built successfully")
@@ -138,7 +141,9 @@ def build_odin_project(debug=True, release=False, profile=False):
     print_script(f"Building Odin project in {'debug' if debug else 'release'} mode...")
 
     if profile:
-        print_script(f"Profiling Odin project in {'debug' if debug else 'release'} mode...")
+        print_script(
+            f"Profiling Odin project in {'debug' if debug else 'release'} mode..."
+        )
 
     os.makedirs("bin", exist_ok=True)
 
@@ -246,7 +251,8 @@ def main():
     compile_shaders()
 
     binary_path = build_odin_project(
-        debug=debug_mode, release=release_mode, profile=profile_mode)
+        debug=debug_mode, release=release_mode, profile=profile_mode
+    )
     run_binary(binary_path)
 
     print_script("Build process and execution completed")
