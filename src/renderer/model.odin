@@ -7,6 +7,8 @@ import "core:strconv"
 import "core:strings"
 import "core:thread"
 
+import "../util"
+
 Model :: struct {
 	vertices: [dynamic]Vertex,
 	indices:  [dynamic]u32,
@@ -47,14 +49,14 @@ ChunkData :: struct {
 @(private = "file")
 NUM_THREADS :: 4
 
-model_load :: proc(path: string) -> (Attrib, []Shape) {
-	data, read_ok := read_file(path)
+model_load :: proc() -> (Attrib, []Shape) {
+	data, read_ok := read_file(MODEL_PATH)
 	if !read_ok {
-		log(fmt.tprintf("Failed to read model: %v", path), "ERROR")
+		log(fmt.tprintf("Failed to read model: %v", MODEL_PATH), "ERROR")
 		return {}, nil
 	}
 
-	log(fmt.tprintf("Loading model: %v", path))
+	log(fmt.tprintf("Loading model: %v", MODEL_PATH))
 
 	lines := strings.split(string(data), "\n")
 	defer delete(lines)
@@ -118,7 +120,7 @@ model_load :: proc(path: string) -> (Attrib, []Shape) {
 		delete(result.shapes)
 	}
 
-	log(fmt.tprintf("Loaded model: %v", path))
+	log(fmt.tprintf("Loaded model: %v", MODEL_PATH))
 
 	return final_attrib, final_shapes[:]
 }

@@ -9,6 +9,8 @@ import "core:strings"
 import stb "vendor:stb/image"
 import vk "vendor:vulkan"
 
+import "../util"
+
 TextureImage :: struct {
 	image: VMAImage,
 }
@@ -29,16 +31,28 @@ texture_image_create :: proc(
 ) -> TextureImage {
 	texture_image := TextureImage{}
 
+	vertex_path, get_ok, error := util.get_vertex_base_path()
+	if !get_ok {
+		log(error, "ERROR")
+		return {}
+	}
+
+	full_path := strings.join(
+		{vertex_path, TEXTURE_PATH},
+		"/",
+		context.temp_allocator,
+	)
+
 	texture_width, texture_height, texture_channels: i32
 	pixels := stb.load(
-		TEXTURE_PATH,
+		util.to_cstring(full_path),
 		&texture_width,
 		&texture_height,
 		&texture_channels,
 		4, // RGBA
 	)
 	if pixels == nil {
-		log(fmt.tprintf("Failed to load texture: %v", TEXTURE_PATH), "ERROR")
+		log(fmt.tprintf("Failed to load texture: %v", full_path), "ERROR")
 		return {}
 	}
 	defer stb.image_free(pixels)
@@ -100,7 +114,7 @@ texture_image_create :: proc(
 		graphics_queue,
 	)
 
-	log(fmt.tprintf("Loaded texture: %v", TEXTURE_PATH))
+	log(fmt.tprintf("Loaded texture: %v", full_path))
 
 	return texture_image
 }

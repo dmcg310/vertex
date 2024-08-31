@@ -7,6 +7,8 @@ import "core:strings"
 
 import vk "vendor:vulkan"
 
+import "../util"
+
 Shaders :: struct {
 	vertex_shader:   []byte,
 	fragment_shader: []byte,
@@ -72,9 +74,17 @@ shader_stage_create :: proc(
 }
 
 read_file :: proc(path: string) -> ([]byte, bool) {
-	data, ok := os.read_entire_file(path, context.temp_allocator)
-	if !ok {
-		msg := fmt.aprintf("Failed to read file %s", path)
+	vertex_path, get_ok, error := util.get_vertex_base_path()
+	if !get_ok {
+		log(error, "ERROR")
+		return nil, false
+	}
+
+	full_path := strings.join({vertex_path, path}, "/", context.temp_allocator)
+
+	data, read_ok := os.read_entire_file(full_path, context.temp_allocator)
+	if !read_ok {
+		msg := fmt.aprintf("Failed to read file %s", full_path)
 		defer delete(msg)
 
 		log(msg, "WARNING")

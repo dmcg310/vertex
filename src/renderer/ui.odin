@@ -1,6 +1,7 @@
 package renderer
 
 import "base:runtime"
+import "core:strings"
 
 import im "../../external/odin-imgui"
 import vk "vendor:vulkan"
@@ -189,9 +190,16 @@ append_assets_node :: proc(name, seperator_text: cstring, entries: []string) {
 
 @(private = "file")
 cache_entries :: proc(path: string, name: string) {
-	entries, list_ok, error := util.list_entries_in_dir(path)
+	vertex_path, get_ok, get_error := util.get_vertex_base_path()
+	if !get_ok {
+		log(get_error, "ERROR")
+	}
+
+	full_path := strings.join({vertex_path, path}, "/", context.temp_allocator)
+
+	entries, list_ok, list_error := util.list_entries_in_dir(full_path)
 	if !list_ok {
-		log(error, "WARNING")
+		log(list_error, "WARNING")
 	}
 
 	switch name {

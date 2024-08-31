@@ -72,7 +72,7 @@ renderer_resources_init :: proc(
 	resources: ^RendererResources,
 	config: RendererConfiguration,
 ) -> bool {
-	attrib, shapes := model_load(MODEL_PATH)
+	attrib, shapes := model_load()
 	resources.model = model_create(attrib, shapes)
 
 	resources.window = window_create(config.width, config.height, config.title)

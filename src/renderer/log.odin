@@ -3,9 +3,12 @@ package renderer
 import "core:fmt"
 import "core:os"
 import "core:path/filepath"
+import "core:strings"
 import "core:time"
 
 import vk "vendor:vulkan"
+
+import "../util"
 
 COLOR_RESET :: "\x1b[0m"
 COLOR_RED :: "\x1b[31m"
@@ -33,10 +36,13 @@ Logger :: struct {
 }
 
 logger_init :: proc() -> (err: os.Errno) {
-	logs_dir := "logs"
+	full_path, ok := get_full_log_path()
+	if !ok {
+		return nil
+	}
 
-	if os.make_directory(logs_dir) != 0 {
-		if !os.exists(logs_dir) {
+	if os.make_directory(full_path) != 0 {
+		if !os.exists(full_path) {
 			return path_not_found_error()
 		}
 	}
@@ -49,7 +55,7 @@ logger_init :: proc() -> (err: os.Errno) {
 	}
 
 	log_file_path := filepath.join(
-		{logs_dir, log_file_name},
+		{full_path, log_file_name},
 		context.temp_allocator,
 	)
 
@@ -69,15 +75,19 @@ logger_init :: proc() -> (err: os.Errno) {
 }
 
 vulkan_logger_init :: proc() -> (err: os.Errno) {
-	logs_dir := "logs"
-	if os.make_directory(logs_dir) != 0 {
-		if !os.exists(logs_dir) {
+	full_path, ok := get_full_log_path()
+	if !ok {
+		return nil
+	}
+
+	if os.make_directory(full_path) != 0 {
+		if !os.exists(full_path) {
 			return path_not_found_error()
 		}
 	}
 
 	vulkan_log_file := filepath.join(
-		{logs_dir, "vulkan_validation.log"},
+		{full_path, "vulkan_validation.log"},
 		context.temp_allocator,
 	)
 	vulkan_logger.file, err = os.open(
@@ -239,4 +249,23 @@ path_not_found_error :: proc() -> os.Errno {
 	} else {
 		return os.ENONET
 	}
+}
+
+@(private = "file")
+get_full_log_path :: proc() -> (string, bool) {
+	logs_path := "logs"
+
+	vertex_path, get_ok, error := util.get_vertex_base_path()
+	if !get_ok {
+		fmt.eprintln(error)
+		return "", false
+	}
+
+	full_path := strings.join(
+		{vertex_path, logs_path},
+		"/",
+		context.temp_allocator,
+	)
+
+	return full_path, true
 }

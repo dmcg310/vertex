@@ -56,3 +56,18 @@ list_entries_in_dir :: proc(
 
 	return res[:], true, ""
 }
+
+get_vertex_base_path :: proc() -> (path: string, ok: bool, error: string) {
+	cwd := os.get_current_directory(context.temp_allocator)
+
+	vertex_index := strings.last_index(cwd, "vertex")
+	if vertex_index == -1 {
+		return "", false, fmt.tprintf(
+			"Failed to find `vertex` directory in current path",
+		)
+	}
+
+	vertex_path := cwd[:vertex_index + 6]
+
+	return vertex_path, true, ""
+}
