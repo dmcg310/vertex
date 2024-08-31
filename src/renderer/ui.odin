@@ -87,19 +87,20 @@ imgui_new_frame :: proc() {
 	imgui_impl_glfw.NewFrame()
 	im.NewFrame()
 
-	dockspace_flags: im.DockNodeFlags = {.PassthruCentralNode}
 	window_flags: im.WindowFlags = {.NoMove, .NoTitleBar}
 
 	viewport := im.GetMainViewport()
 
 	if restore_ui_size_defaults {
+		padding: f32 = 12.0
+
 		window_size: Vec2
 		window_pos: Vec2
 
 		window_size.x = viewport.Size.x * 0.10
-		window_size.y = viewport.Size.y
-		window_pos.x = viewport.Pos.x
-		window_pos.y = viewport.Pos.y
+		window_size.y = viewport.Size.y - (padding * 2)
+		window_pos.x = viewport.Pos.x + padding
+		window_pos.y = viewport.Pos.y + padding
 
 		im.SetNextWindowPos(window_pos)
 		im.SetNextWindowSize(window_size)
@@ -110,14 +111,8 @@ imgui_new_frame :: proc() {
 		im.SetNextWindowViewport(viewport._ID)
 	}
 
-	im.Begin("Dockspace", nil, window_flags)
-	defer im.End()
-
-	dockspace_id := im.GetID("Dockspace")
-	im.DockSpace(dockspace_id, {0, 0}, dockspace_flags)
-
-	if im.Begin("Window 1", nil) {
-		im.Text("This is window 1")
+	if im.Begin("Options", nil, window_flags) {
+		im.Text("These are the options")
 	}
 	im.End()
 }
