@@ -3,7 +3,6 @@ package renderer
 import "core:math/linalg"
 import "core:mem"
 import "core:slice"
-import "core:time"
 
 import vk "vendor:vulkan"
 
@@ -42,7 +41,8 @@ UniformBuffer :: struct {
 }
 
 UniformBuffers :: struct {
-	buffers: []UniformBuffer,
+	buffers:    []UniformBuffer,
+	total_time: f32,
 }
 
 /* VERTEX BUFFER */
@@ -266,7 +266,7 @@ buffer_uniforms_create :: proc(
 
 	log("Vulkan uniform buffers created")
 
-	return UniformBuffers{buffers}
+	return UniformBuffers{buffers, 0}
 }
 
 buffer_uniforms_update :: proc(
@@ -274,14 +274,17 @@ buffer_uniforms_update :: proc(
 	current_frame: u32,
 	swap_chain_extent: vk.Extent2D,
 	vma_allocator: VMAAllocator,
+	delta_time: f64,
 ) {
-	start_time := time.now()
-	time_elapsed := time.duration_seconds(time.since(start_time))
+
+	uniform_buffers.total_time += f32(delta_time)
 
 	ubo := &uniform_buffers.buffers[current_frame].object
 
+	rotation_speed: f32 = 90.0
+	rotation_angle := uniform_buffers.total_time * rotation_speed
 	ubo.model = linalg.matrix4_rotate_f32(
-		f32(time_elapsed * linalg.to_radians(90.0)),
+		linalg.to_radians(rotation_angle),
 		Vec3{0, 0, 1},
 	)
 

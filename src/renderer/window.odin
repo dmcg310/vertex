@@ -1,5 +1,6 @@
 package renderer
 
+import "core:fmt"
 import "vendor:glfw"
 
 import vk "vendor:vulkan"
@@ -58,6 +59,33 @@ window_toggle_visibility :: proc(window: ^Window) {
 
 window_get_framebuffer_size :: proc(window: Window) -> (i32, i32) {
 	return glfw.GetFramebufferSize(window.handle)
+}
+
+window_get_refresh_rate :: proc(window: ^Window) -> i32 {
+	monitor := glfw.GetWindowMonitor(window.handle)
+	if monitor == nil {
+		monitor = glfw.GetPrimaryMonitor()
+	}
+	if monitor == nil {
+		log("Failed to get monitor, defaulting to 60 Hz for metrics")
+		return 60
+	}
+
+	mode := glfw.GetVideoMode(monitor)
+	if mode == nil {
+		log("Failed to get video mode, defaulting to 60 Hz for metrics")
+		return 60
+	}
+
+	refresh_rate := i32(mode.refresh_rate)
+	log(fmt.tprintf("Detected monitor refresh rate: %d Hz", refresh_rate))
+
+	if refresh_rate == 0 {
+		log("GLFW returned 0 Hz refresh rate, defaulting to 60 Hz for metrics")
+		return 60
+	}
+
+	return refresh_rate
 }
 
 window_is_closed :: proc(window: Window) -> bool {
