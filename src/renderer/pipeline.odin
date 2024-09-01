@@ -18,6 +18,10 @@ pipeline_create :: proc(
 	device: Device,
 	descriptor_set_layout: ^DescriptorSetlayout,
 ) -> GraphicsPipeline {
+	if VERT_PATH == "" || FRAG_PATH == "" {
+		return {}
+	}
+
 	pipeline := GraphicsPipeline{}
 
 	shaders, ok := shaders_read({VERT_PATH, FRAG_PATH})

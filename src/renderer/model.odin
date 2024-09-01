@@ -48,6 +48,10 @@ ChunkData :: struct {
 NUM_THREADS :: 4
 
 model_load :: proc() -> (Attrib, []Shape) {
+	if MODEL_PATH == "" {
+		return {}, nil
+	}
+
 	data, read_ok := read_file(MODEL_PATH)
 	if !read_ok {
 		log(fmt.tprintf("Failed to read model: %v", MODEL_PATH), "ERROR")

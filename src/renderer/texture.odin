@@ -29,6 +29,10 @@ texture_image_create :: proc(
 	graphics_queue: vk.Queue,
 	vma_allocator: VMAAllocator,
 ) -> TextureImage {
+	if TEXTURE_PATH == "" {
+		return {}
+	}
+
 	texture_image := TextureImage{}
 
 	vertex_path, get_ok, error := util.get_vertex_base_path()
