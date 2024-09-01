@@ -159,7 +159,7 @@ create_performance_section :: proc(
 	renderer_time: RendererTime,
 	refresh_rate: i32,
 ) {
-	if im.CollapsingHeader("Performance", {.DefaultOpen}) {
+	if im.CollapsingHeader("Performance") {
 		fps := renderer_time.fps
 		delta_time := renderer_time.delta_time
 		frame_time := 1000.0 / fps
