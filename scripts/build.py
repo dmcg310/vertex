@@ -158,6 +158,7 @@ def build_odin_project(debug=True, release=False, profile=False):
         build_cmd.extend(
             [
                 "-debug",
+                "-vet",
                 "-vet-unused-variables",
                 "-vet-shadowing",
                 "-vet-using-stmt",

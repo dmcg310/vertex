@@ -7,8 +7,6 @@ import "core:strconv"
 import "core:strings"
 import "core:thread"
 
-import "../util"
-
 Model :: struct {
 	vertices: [dynamic]Vertex,
 	indices:  [dynamic]u32,
