@@ -2,6 +2,8 @@
 
 Vertex is a Vulkan-based renderer.
 
+![vertex.png](vertex.png)
+
 ## Features
 
 - Vulkan initialization and setup
