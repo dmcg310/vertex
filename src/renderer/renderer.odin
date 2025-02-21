@@ -40,6 +40,7 @@ RendererState :: struct {
 	is_initialized: bool,
 	mutex:          sync.Mutex,
 	renderer_time:  RendererTime,
+	camera:         Camera,
 }
 
 RendererConfiguration :: struct {
@@ -62,6 +63,7 @@ renderer_init :: proc(
 
 		refresh_rate := window_get_refresh_rate(&renderer.resources.window)
 		renderer.state.renderer_time = renderer_time_init(refresh_rate)
+		renderer.state.camera = camera_init()
 
 		log("Renderer initialized")
 
@@ -247,11 +249,12 @@ frame_render :: proc(renderer: ^Renderer) -> bool {
 		renderer.resources.swap_chain.extent_2d,
 		renderer.resources.vma_allocator,
 		renderer.state.renderer_time.delta_time,
+		&renderer.state.camera,
 	)
 
 	command_buffer_reset(command_buffer)
 
-	imgui_new_frame(renderer.state, renderer.state.renderer_time.refresh_rate)
+	imgui_new_frame(&renderer.state, renderer.state.renderer_time.refresh_rate)
 
 	record_ok := command_buffer_record(
 		command_buffer,

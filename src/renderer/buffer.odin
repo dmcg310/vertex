@@ -275,23 +275,19 @@ buffer_uniforms_update :: proc(
 	swap_chain_extent: vk.Extent2D,
 	vma_allocator: VMAAllocator,
 	delta_time: f64,
+	camera: ^Camera,
 ) {
-
 	uniform_buffers.total_time += f32(delta_time)
 
 	ubo := &uniform_buffers.buffers[current_frame].object
+	ubo.model = linalg.MATRIX4F32_IDENTITY
 
-	rotation_speed: f32 = 90.0
-	rotation_angle := uniform_buffers.total_time * rotation_speed
-	ubo.model = linalg.matrix4_rotate_f32(
-		linalg.to_radians(rotation_angle),
-		Vec3{0, 0, 1},
-	)
+	camera_position_update(camera)
 
 	ubo.view = linalg.matrix4_look_at_f32(
-		Vec3{2, 2, 2}, // Eye position
-		Vec3{0, 0, 0}, // Center position
-		Vec3{0, 0, 1}, // Up vector
+		camera.position,
+		camera.target,
+		camera.up,
 	)
 
 	aspect_ratio :=

@@ -92,7 +92,7 @@ imgui_init :: proc(resources: RendererResources) {
 	log("ImGui context initialized")
 }
 
-imgui_new_frame :: proc(renderer_state: RendererState, refresh_rate: i32) {
+imgui_new_frame :: proc(renderer_state: ^RendererState, refresh_rate: i32) {
 	imgui_impl_vulkan.NewFrame()
 	imgui_impl_glfw.NewFrame()
 	im.NewFrame()
@@ -124,6 +124,7 @@ imgui_new_frame :: proc(renderer_state: RendererState, refresh_rate: i32) {
 	if im.Begin("Options", nil, window_flags) {
 		create_performance_section(renderer_state.renderer_time, refresh_rate)
 		create_assets_section()
+		create_camera_section(&renderer_state.camera)
 	}
 
 	im.End()
@@ -159,7 +160,7 @@ create_performance_section :: proc(
 	renderer_time: RendererTime,
 	refresh_rate: i32,
 ) {
-	if im.CollapsingHeader("Performance") {
+	if im.CollapsingHeader("Performance", {.DefaultOpen}) {
 		fps := renderer_time.fps
 		delta_time := renderer_time.delta_time
 		frame_time := 1000.0 / fps
@@ -223,6 +224,41 @@ create_assets_section :: proc() {
 		append_assets_node("Models", "assets/models", cached_model_names)
 		append_assets_node("Shaders", "assets/shaders", cached_shader_names)
 		append_assets_node("Textures", "assets/textures", cached_texture_names)
+	}
+}
+
+@(private = "file")
+create_camera_section :: proc(camera: ^Camera) {
+	if im.CollapsingHeader("Camera", {.DefaultOpen}) {
+		// zoom
+		zoom := camera.orbit_distance
+		if im.SliderFloat("Zoom", &zoom, camera.max_zoom, camera.min_zoom) {
+			camera.orbit_distance = zoom
+		}
+
+		// orbit
+		yaw := camera.yaw
+		if im.SliderFloat("Yaw", &yaw, -360, 360) {
+			camera.yaw = yaw
+		}
+
+		pitch := camera.pitch
+		if im.SliderFloat("Pitch", &pitch, -89, 89) {
+			camera.pitch = pitch
+		}
+
+		im.Text(
+			util.to_cstring(
+				fmt.tprintf(
+					"Position: (%.2f, %.2f, %.2f)",
+					camera.position.x,
+					camera.position.y,
+					camera.position.z,
+				),
+			),
+		)
+
+		im.Spacing()
 	}
 }
 
