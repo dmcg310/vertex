@@ -10,6 +10,7 @@ Vertex is a Vulkan-based renderer.
 - GPU memory management using `VulkanMemoryAllocator` (VMA)
 - Shader compilation (vertex and fragment shaders)
 - Multithreaded, native, OBJ model loading.
+- Camera system.
 - Imgui integration
 - File and console-based logging
 - Profiling with Spall
