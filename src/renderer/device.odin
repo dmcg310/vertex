@@ -1,3 +1,5 @@
+#+feature dynamic-literals
+
 package renderer
 
 import "core:fmt"
